@@ -1,0 +1,12 @@
+{
+  "table": "sys_user",
+  "description": "管理员账号；密码明文 123456，MD5=e10adc3949ba59abbe56e057f20f883e",
+  "rows": [
+    {
+      "id": 1,
+      "username": "admin",
+      "password_md5": "e10adc3949ba59abbe56e057f20f883e",
+      "is_delete": 0
+    }
+  ]
+}

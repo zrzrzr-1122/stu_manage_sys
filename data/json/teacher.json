@@ -1,0 +1,78 @@
+{
+  "table": "ai0720_teacher",
+  "description": "教师 mock 数据；class_id 对齐班级主键 id",
+  "rows": [
+    {
+      "tid": 1,
+      "tname": "刘老师",
+      "sex": "男",
+      "class_id": 1,
+      "tstatus": "在职",
+      "tphone": "13900001001",
+      "if_delete": 0
+    },
+    {
+      "tid": 2,
+      "tname": "陈老师",
+      "sex": "女",
+      "class_id": 2,
+      "tstatus": "在职",
+      "tphone": "13900001002",
+      "if_delete": 0
+    },
+    {
+      "tid": 3,
+      "tname": "赵老师",
+      "sex": "男",
+      "class_id": 3,
+      "tstatus": "在职",
+      "tphone": "13900001003",
+      "if_delete": 0
+    },
+    {
+      "tid": 4,
+      "tname": "周老师",
+      "sex": "女",
+      "class_id": 4,
+      "tstatus": "在职",
+      "tphone": "13900001004",
+      "if_delete": 0
+    },
+    {
+      "tid": 5,
+      "tname": "吴老师",
+      "sex": "男",
+      "class_id": 5,
+      "tstatus": "在职",
+      "tphone": "13900001005",
+      "if_delete": 0
+    },
+    {
+      "tid": 6,
+      "tname": "冯老师",
+      "sex": "女",
+      "class_id": 6,
+      "tstatus": "休假",
+      "tphone": "13900001006",
+      "if_delete": 0
+    },
+    {
+      "tid": 7,
+      "tname": "曹老师",
+      "sex": "男",
+      "class_id": 7,
+      "tstatus": "在职",
+      "tphone": "13900001007",
+      "if_delete": 0
+    },
+    {
+      "tid": 8,
+      "tname": "沈助教",
+      "sex": "女",
+      "class_id": 1,
+      "tstatus": "在职",
+      "tphone": "13900001008",
+      "if_delete": 0
+    }
+  ]
+}

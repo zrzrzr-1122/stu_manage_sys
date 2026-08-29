@@ -1,0 +1,66 @@
+{
+  "table": "consultant",
+  "description": "顾问 mock 数据；cid 对齐学生表 counselor 字段（101/102/103）",
+  "rows": [
+    {
+      "cid": 101,
+      "cname": "周顾问",
+      "sex": "女",
+      "phone": "13800000101",
+      "did": 1,
+      "position": "高级顾问",
+      "status": 0,
+      "is_delete": 0
+    },
+    {
+      "cid": 102,
+      "cname": "吴顾问",
+      "sex": "男",
+      "phone": "13800000102",
+      "did": 1,
+      "position": "中级顾问",
+      "status": 0,
+      "is_delete": 0
+    },
+    {
+      "cid": 103,
+      "cname": "郑顾问",
+      "sex": "女",
+      "phone": "13800000103",
+      "did": 2,
+      "position": "初级顾问",
+      "status": 0,
+      "is_delete": 0
+    },
+    {
+      "cid": 104,
+      "cname": "冯顾问",
+      "sex": "男",
+      "phone": "13800000104",
+      "did": 2,
+      "position": "初级顾问",
+      "status": 0,
+      "is_delete": 0
+    },
+    {
+      "cid": 105,
+      "cname": "韩顾问",
+      "sex": "女",
+      "phone": "13800000105",
+      "did": 3,
+      "position": "中级顾问",
+      "status": 1,
+      "is_delete": 0
+    },
+    {
+      "cid": 106,
+      "cname": "曹顾问",
+      "sex": "男",
+      "phone": "13800000106",
+      "did": 3,
+      "position": "高级顾问",
+      "status": 0,
+      "is_delete": 0
+    }
+  ]
+}

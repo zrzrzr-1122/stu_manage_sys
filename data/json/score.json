@@ -1,0 +1,646 @@
+{
+  "table": "ai0720score",
+  "description": "成绩 mock：每人 2 次考核",
+  "rows": [
+    {
+      "id": 1,
+      "stu_id": 1,
+      "stu_name": "王小明",
+      "exam_order": 1,
+      "score": 91.0,
+      "is_deleted": 0,
+      "create_date": "2024-06-01 10:00:00",
+      "update_date": "2024-06-01 10:00:00"
+    },
+    {
+      "id": 2,
+      "stu_id": 1,
+      "stu_name": "王小明",
+      "exam_order": 2,
+      "score": 80.5,
+      "is_deleted": 0,
+      "create_date": "2024-09-01 10:00:00",
+      "update_date": "2024-09-01 10:00:00"
+    },
+    {
+      "id": 3,
+      "stu_id": 2,
+      "stu_name": "李小红",
+      "exam_order": 1,
+      "score": 94.4,
+      "is_deleted": 0,
+      "create_date": "2024-06-01 10:00:00",
+      "update_date": "2024-06-01 10:00:00"
+    },
+    {
+      "id": 4,
+      "stu_id": 2,
+      "stu_name": "李小红",
+      "exam_order": 2,
+      "score": 99.1,
+      "is_deleted": 0,
+      "create_date": "2024-09-01 10:00:00",
+      "update_date": "2024-09-01 10:00:00"
+    },
+    {
+      "id": 5,
+      "stu_id": 3,
+      "stu_name": "张伟",
+      "exam_order": 1,
+      "score": 50.0,
+      "is_deleted": 0,
+      "create_date": "2024-06-01 10:00:00",
+      "update_date": "2024-06-01 10:00:00"
+    },
+    {
+      "id": 6,
+      "stu_id": 3,
+      "stu_name": "张伟",
+      "exam_order": 2,
+      "score": 48.4,
+      "is_deleted": 0,
+      "create_date": "2024-09-01 10:00:00",
+      "update_date": "2024-09-01 10:00:00"
+    },
+    {
+      "id": 7,
+      "stu_id": 4,
+      "stu_name": "刘芳",
+      "exam_order": 1,
+      "score": 62.8,
+      "is_deleted": 0,
+      "create_date": "2024-06-01 10:00:00",
+      "update_date": "2024-06-01 10:00:00"
+    },
+    {
+      "id": 8,
+      "stu_id": 4,
+      "stu_name": "刘芳",
+      "exam_order": 2,
+      "score": 69.1,
+      "is_deleted": 0,
+      "create_date": "2024-09-01 10:00:00",
+      "update_date": "2024-09-01 10:00:00"
+    },
+    {
+      "id": 9,
+      "stu_id": 5,
+      "stu_name": "陈强",
+      "exam_order": 1,
+      "score": 97.4,
+      "is_deleted": 0,
+      "create_date": "2024-06-01 10:00:00",
+      "update_date": "2024-06-01 10:00:00"
+    },
+    {
+      "id": 10,
+      "stu_id": 5,
+      "stu_name": "陈强",
+      "exam_order": 2,
+      "score": 100,
+      "is_deleted": 0,
+      "create_date": "2024-09-01 10:00:00",
+      "update_date": "2024-09-01 10:00:00"
+    },
+    {
+      "id": 11,
+      "stu_id": 6,
+      "stu_name": "赵敏",
+      "exam_order": 1,
+      "score": 95.9,
+      "is_deleted": 0,
+      "create_date": "2024-06-01 10:00:00",
+      "update_date": "2024-06-01 10:00:00"
+    },
+    {
+      "id": 12,
+      "stu_id": 6,
+      "stu_name": "赵敏",
+      "exam_order": 2,
+      "score": 98.7,
+      "is_deleted": 0,
+      "create_date": "2024-09-01 10:00:00",
+      "update_date": "2024-09-01 10:00:00"
+    },
+    {
+      "id": 13,
+      "stu_id": 7,
+      "stu_name": "孙洋",
+      "exam_order": 1,
+      "score": 41.1,
+      "is_deleted": 0,
+      "create_date": "2024-06-01 10:00:00",
+      "update_date": "2024-06-01 10:00:00"
+    },
+    {
+      "id": 14,
+      "stu_id": 7,
+      "stu_name": "孙洋",
+      "exam_order": 2,
+      "score": 46.3,
+      "is_deleted": 0,
+      "create_date": "2024-09-01 10:00:00",
+      "update_date": "2024-09-01 10:00:00"
+    },
+    {
+      "id": 15,
+      "stu_id": 8,
+      "stu_name": "周洁",
+      "exam_order": 1,
+      "score": 64.2,
+      "is_deleted": 0,
+      "create_date": "2024-06-01 10:00:00",
+      "update_date": "2024-06-01 10:00:00"
+    },
+    {
+      "id": 16,
+      "stu_id": 8,
+      "stu_name": "周洁",
+      "exam_order": 2,
+      "score": 57.9,
+      "is_deleted": 0,
+      "create_date": "2024-09-01 10:00:00",
+      "update_date": "2024-09-01 10:00:00"
+    },
+    {
+      "id": 17,
+      "stu_id": 9,
+      "stu_name": "吴刚",
+      "exam_order": 1,
+      "score": 48.4,
+      "is_deleted": 0,
+      "create_date": "2024-06-01 10:00:00",
+      "update_date": "2024-06-01 10:00:00"
+    },
+    {
+      "id": 18,
+      "stu_id": 9,
+      "stu_name": "吴刚",
+      "exam_order": 2,
+      "score": 56.4,
+      "is_deleted": 0,
+      "create_date": "2024-09-01 10:00:00",
+      "update_date": "2024-09-01 10:00:00"
+    },
+    {
+      "id": 19,
+      "stu_id": 10,
+      "stu_name": "郑秀",
+      "exam_order": 1,
+      "score": 73.2,
+      "is_deleted": 0,
+      "create_date": "2024-06-01 10:00:00",
+      "update_date": "2024-06-01 10:00:00"
+    },
+    {
+      "id": 20,
+      "stu_id": 10,
+      "stu_name": "郑秀",
+      "exam_order": 2,
+      "score": 77.8,
+      "is_deleted": 0,
+      "create_date": "2024-09-01 10:00:00",
+      "update_date": "2024-09-01 10:00:00"
+    },
+    {
+      "id": 21,
+      "stu_id": 11,
+      "stu_name": "钱进",
+      "exam_order": 1,
+      "score": 44.9,
+      "is_deleted": 0,
+      "create_date": "2024-06-01 10:00:00",
+      "update_date": "2024-06-01 10:00:00"
+    },
+    {
+      "id": 22,
+      "stu_id": 11,
+      "stu_name": "钱进",
+      "exam_order": 2,
+      "score": 53.5,
+      "is_deleted": 0,
+      "create_date": "2024-09-01 10:00:00",
+      "update_date": "2024-09-01 10:00:00"
+    },
+    {
+      "id": 23,
+      "stu_id": 12,
+      "stu_name": "冯雅",
+      "exam_order": 1,
+      "score": 91.7,
+      "is_deleted": 0,
+      "create_date": "2024-06-01 10:00:00",
+      "update_date": "2024-06-01 10:00:00"
+    },
+    {
+      "id": 24,
+      "stu_id": 12,
+      "stu_name": "冯雅",
+      "exam_order": 2,
+      "score": 79.9,
+      "is_deleted": 0,
+      "create_date": "2024-09-01 10:00:00",
+      "update_date": "2024-09-01 10:00:00"
+    },
+    {
+      "id": 25,
+      "stu_id": 13,
+      "stu_name": "何磊",
+      "exam_order": 1,
+      "score": 64.4,
+      "is_deleted": 0,
+      "create_date": "2024-06-01 10:00:00",
+      "update_date": "2024-06-01 10:00:00"
+    },
+    {
+      "id": 26,
+      "stu_id": 13,
+      "stu_name": "何磊",
+      "exam_order": 2,
+      "score": 66.8,
+      "is_deleted": 0,
+      "create_date": "2024-09-01 10:00:00",
+      "update_date": "2024-09-01 10:00:00"
+    },
+    {
+      "id": 27,
+      "stu_id": 14,
+      "stu_name": "罗倩",
+      "exam_order": 1,
+      "score": 71.4,
+      "is_deleted": 0,
+      "create_date": "2024-06-01 10:00:00",
+      "update_date": "2024-06-01 10:00:00"
+    },
+    {
+      "id": 28,
+      "stu_id": 14,
+      "stu_name": "罗倩",
+      "exam_order": 2,
+      "score": 78.7,
+      "is_deleted": 0,
+      "create_date": "2024-09-01 10:00:00",
+      "update_date": "2024-09-01 10:00:00"
+    },
+    {
+      "id": 29,
+      "stu_id": 15,
+      "stu_name": "高翔",
+      "exam_order": 1,
+      "score": 52.6,
+      "is_deleted": 0,
+      "create_date": "2024-06-01 10:00:00",
+      "update_date": "2024-06-01 10:00:00"
+    },
+    {
+      "id": 30,
+      "stu_id": 15,
+      "stu_name": "高翔",
+      "exam_order": 2,
+      "score": 61.4,
+      "is_deleted": 0,
+      "create_date": "2024-09-01 10:00:00",
+      "update_date": "2024-09-01 10:00:00"
+    },
+    {
+      "id": 31,
+      "stu_id": 16,
+      "stu_name": "林娜",
+      "exam_order": 1,
+      "score": 93.6,
+      "is_deleted": 0,
+      "create_date": "2024-06-01 10:00:00",
+      "update_date": "2024-06-01 10:00:00"
+    },
+    {
+      "id": 32,
+      "stu_id": 16,
+      "stu_name": "林娜",
+      "exam_order": 2,
+      "score": 100.0,
+      "is_deleted": 0,
+      "create_date": "2024-09-01 10:00:00",
+      "update_date": "2024-09-01 10:00:00"
+    },
+    {
+      "id": 33,
+      "stu_id": 17,
+      "stu_name": "梁涛",
+      "exam_order": 1,
+      "score": 70.8,
+      "is_deleted": 0,
+      "create_date": "2024-06-01 10:00:00",
+      "update_date": "2024-06-01 10:00:00"
+    },
+    {
+      "id": 34,
+      "stu_id": 17,
+      "stu_name": "梁涛",
+      "exam_order": 2,
+      "score": 62.9,
+      "is_deleted": 0,
+      "create_date": "2024-09-01 10:00:00",
+      "update_date": "2024-09-01 10:00:00"
+    },
+    {
+      "id": 35,
+      "stu_id": 18,
+      "stu_name": "宋婷",
+      "exam_order": 1,
+      "score": 95.5,
+      "is_deleted": 0,
+      "create_date": "2024-06-01 10:00:00",
+      "update_date": "2024-06-01 10:00:00"
+    },
+    {
+      "id": 36,
+      "stu_id": 18,
+      "stu_name": "宋婷",
+      "exam_order": 2,
+      "score": 88.7,
+      "is_deleted": 0,
+      "create_date": "2024-09-01 10:00:00",
+      "update_date": "2024-09-01 10:00:00"
+    },
+    {
+      "id": 37,
+      "stu_id": 19,
+      "stu_name": "唐宇",
+      "exam_order": 1,
+      "score": 96.8,
+      "is_deleted": 0,
+      "create_date": "2024-06-01 10:00:00",
+      "update_date": "2024-06-01 10:00:00"
+    },
+    {
+      "id": 38,
+      "stu_id": 19,
+      "stu_name": "唐宇",
+      "exam_order": 2,
+      "score": 92.3,
+      "is_deleted": 0,
+      "create_date": "2024-09-01 10:00:00",
+      "update_date": "2024-09-01 10:00:00"
+    },
+    {
+      "id": 39,
+      "stu_id": 20,
+      "stu_name": "许静",
+      "exam_order": 1,
+      "score": 80.4,
+      "is_deleted": 0,
+      "create_date": "2024-06-01 10:00:00",
+      "update_date": "2024-06-01 10:00:00"
+    },
+    {
+      "id": 40,
+      "stu_id": 20,
+      "stu_name": "许静",
+      "exam_order": 2,
+      "score": 95.1,
+      "is_deleted": 0,
+      "create_date": "2024-09-01 10:00:00",
+      "update_date": "2024-09-01 10:00:00"
+    },
+    {
+      "id": 41,
+      "stu_id": 21,
+      "stu_name": "邓凯",
+      "exam_order": 1,
+      "score": 62.7,
+      "is_deleted": 0,
+      "create_date": "2024-06-01 10:00:00",
+      "update_date": "2024-06-01 10:00:00"
+    },
+    {
+      "id": 42,
+      "stu_id": 21,
+      "stu_name": "邓凯",
+      "exam_order": 2,
+      "score": 53.6,
+      "is_deleted": 0,
+      "create_date": "2024-09-01 10:00:00",
+      "update_date": "2024-09-01 10:00:00"
+    },
+    {
+      "id": 43,
+      "stu_id": 22,
+      "stu_name": "曹雪",
+      "exam_order": 1,
+      "score": 97.7,
+      "is_deleted": 0,
+      "create_date": "2024-06-01 10:00:00",
+      "update_date": "2024-06-01 10:00:00"
+    },
+    {
+      "id": 44,
+      "stu_id": 22,
+      "stu_name": "曹雪",
+      "exam_order": 2,
+      "score": 100,
+      "is_deleted": 0,
+      "create_date": "2024-09-01 10:00:00",
+      "update_date": "2024-09-01 10:00:00"
+    },
+    {
+      "id": 45,
+      "stu_id": 23,
+      "stu_name": "彭飞",
+      "exam_order": 1,
+      "score": 62.4,
+      "is_deleted": 0,
+      "create_date": "2024-06-01 10:00:00",
+      "update_date": "2024-06-01 10:00:00"
+    },
+    {
+      "id": 46,
+      "stu_id": 23,
+      "stu_name": "彭飞",
+      "exam_order": 2,
+      "score": 54.4,
+      "is_deleted": 0,
+      "create_date": "2024-09-01 10:00:00",
+      "update_date": "2024-09-01 10:00:00"
+    },
+    {
+      "id": 47,
+      "stu_id": 24,
+      "stu_name": "萧然",
+      "exam_order": 1,
+      "score": 84.7,
+      "is_deleted": 0,
+      "create_date": "2024-06-01 10:00:00",
+      "update_date": "2024-06-01 10:00:00"
+    },
+    {
+      "id": 48,
+      "stu_id": 24,
+      "stu_name": "萧然",
+      "exam_order": 2,
+      "score": 83.1,
+      "is_deleted": 0,
+      "create_date": "2024-09-01 10:00:00",
+      "update_date": "2024-09-01 10:00:00"
+    },
+    {
+      "id": 49,
+      "stu_id": 25,
+      "stu_name": "蒋雯",
+      "exam_order": 1,
+      "score": 79.9,
+      "is_deleted": 0,
+      "create_date": "2024-06-01 10:00:00",
+      "update_date": "2024-06-01 10:00:00"
+    },
+    {
+      "id": 50,
+      "stu_id": 25,
+      "stu_name": "蒋雯",
+      "exam_order": 2,
+      "score": 94.7,
+      "is_deleted": 0,
+      "create_date": "2024-09-01 10:00:00",
+      "update_date": "2024-09-01 10:00:00"
+    },
+    {
+      "id": 51,
+      "stu_id": 26,
+      "stu_name": "韩旭",
+      "exam_order": 1,
+      "score": 87.3,
+      "is_deleted": 0,
+      "create_date": "2024-06-01 10:00:00",
+      "update_date": "2024-06-01 10:00:00"
+    },
+    {
+      "id": 52,
+      "stu_id": 26,
+      "stu_name": "韩旭",
+      "exam_order": 2,
+      "score": 83.8,
+      "is_deleted": 0,
+      "create_date": "2024-09-01 10:00:00",
+      "update_date": "2024-09-01 10:00:00"
+    },
+    {
+      "id": 53,
+      "stu_id": 27,
+      "stu_name": "谢琳",
+      "exam_order": 1,
+      "score": 82.0,
+      "is_deleted": 0,
+      "create_date": "2024-06-01 10:00:00",
+      "update_date": "2024-06-01 10:00:00"
+    },
+    {
+      "id": 54,
+      "stu_id": 27,
+      "stu_name": "谢琳",
+      "exam_order": 2,
+      "score": 89.5,
+      "is_deleted": 0,
+      "create_date": "2024-09-01 10:00:00",
+      "update_date": "2024-09-01 10:00:00"
+    },
+    {
+      "id": 55,
+      "stu_id": 28,
+      "stu_name": "董浩",
+      "exam_order": 1,
+      "score": 62.7,
+      "is_deleted": 0,
+      "create_date": "2024-06-01 10:00:00",
+      "update_date": "2024-06-01 10:00:00"
+    },
+    {
+      "id": 56,
+      "stu_id": 28,
+      "stu_name": "董浩",
+      "exam_order": 2,
+      "score": 51.4,
+      "is_deleted": 0,
+      "create_date": "2024-09-01 10:00:00",
+      "update_date": "2024-09-01 10:00:00"
+    },
+    {
+      "id": 57,
+      "stu_id": 29,
+      "stu_name": "袁圆",
+      "exam_order": 1,
+      "score": 85.4,
+      "is_deleted": 0,
+      "create_date": "2024-06-01 10:00:00",
+      "update_date": "2024-06-01 10:00:00"
+    },
+    {
+      "id": 58,
+      "stu_id": 29,
+      "stu_name": "袁圆",
+      "exam_order": 2,
+      "score": 82.6,
+      "is_deleted": 0,
+      "create_date": "2024-09-01 10:00:00",
+      "update_date": "2024-09-01 10:00:00"
+    },
+    {
+      "id": 59,
+      "stu_id": 30,
+      "stu_name": "潘晨",
+      "exam_order": 1,
+      "score": 75.6,
+      "is_deleted": 0,
+      "create_date": "2024-06-01 10:00:00",
+      "update_date": "2024-06-01 10:00:00"
+    },
+    {
+      "id": 60,
+      "stu_id": 30,
+      "stu_name": "潘晨",
+      "exam_order": 2,
+      "score": 77.7,
+      "is_deleted": 0,
+      "create_date": "2024-09-01 10:00:00",
+      "update_date": "2024-09-01 10:00:00"
+    },
+    {
+      "id": 61,
+      "stu_id": 31,
+      "stu_name": "于帆",
+      "exam_order": 1,
+      "score": 64.6,
+      "is_deleted": 0,
+      "create_date": "2024-06-01 10:00:00",
+      "update_date": "2024-06-01 10:00:00"
+    },
+    {
+      "id": 62,
+      "stu_id": 31,
+      "stu_name": "于帆",
+      "exam_order": 2,
+      "score": 58.1,
+      "is_deleted": 0,
+      "create_date": "2024-09-01 10:00:00",
+      "update_date": "2024-09-01 10:00:00"
+    },
+    {
+      "id": 63,
+      "stu_id": 32,
+      "stu_name": "蒋宁",
+      "exam_order": 1,
+      "score": 71.7,
+      "is_deleted": 0,
+      "create_date": "2024-06-01 10:00:00",
+      "update_date": "2024-06-01 10:00:00"
+    },
+    {
+      "id": 64,
+      "stu_id": 32,
+      "stu_name": "蒋宁",
+      "exam_order": 2,
+      "score": 61.6,
+      "is_deleted": 0,
+      "create_date": "2024-09-01 10:00:00",
+      "update_date": "2024-09-01 10:00:00"
+    }
+  ]
+}

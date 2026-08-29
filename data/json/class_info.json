@@ -1,0 +1,62 @@
+{
+  "table": "class_info",
+  "description": "班级补充/规范数据（与现有 id=1..7 对齐，导入脚本会 UPDATE）",
+  "rows": [
+    {
+      "id": 1,
+      "class_id": "AI0720-01",
+      "start_time": "2024-03-01 09:00:00",
+      "head_teacher": "张班主任",
+      "teacher": "刘老师",
+      "is_delete": 0
+    },
+    {
+      "id": 2,
+      "class_id": "AI0720-02",
+      "start_time": "2024-03-15 09:00:00",
+      "head_teacher": "李班主任",
+      "teacher": "陈老师",
+      "is_delete": 0
+    },
+    {
+      "id": 3,
+      "class_id": "AI0720-03",
+      "start_time": "2024-04-01 09:00:00",
+      "head_teacher": "王班主任",
+      "teacher": "赵老师",
+      "is_delete": 0
+    },
+    {
+      "id": 4,
+      "class_id": "AI0720-04",
+      "start_time": "2024-05-01 09:00:00",
+      "head_teacher": "孙班主任",
+      "teacher": "周老师",
+      "is_delete": 0
+    },
+    {
+      "id": 5,
+      "class_id": "AI0720-05",
+      "start_time": "2024-06-01 09:00:00",
+      "head_teacher": "钱班主任",
+      "teacher": "吴老师",
+      "is_delete": 0
+    },
+    {
+      "id": 6,
+      "class_id": "AI0720-06",
+      "start_time": "2024-07-01 09:00:00",
+      "head_teacher": "郑班主任",
+      "teacher": "冯老师",
+      "is_delete": 0
+    },
+    {
+      "id": 7,
+      "class_id": "AI0720-07",
+      "start_time": "2024-08-01 09:00:00",
+      "head_teacher": "韩班主任",
+      "teacher": "曹老师",
+      "is_delete": 0
+    }
+  ]
+}

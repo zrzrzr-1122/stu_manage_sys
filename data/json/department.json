@@ -1,0 +1,38 @@
+{
+  "table": "department",
+  "description": "部门 mock 数据",
+  "rows": [
+    {
+      "did": 1,
+      "dname": "就业指导部",
+      "manager": "王建国",
+      "phone": "010-88880001",
+      "dstatus": 1,
+      "id_delete": 0
+    },
+    {
+      "did": 2,
+      "dname": "学员服务部",
+      "manager": "李秀英",
+      "phone": "010-88880002",
+      "dstatus": 1,
+      "id_delete": 0
+    },
+    {
+      "did": 3,
+      "dname": "教学管理部",
+      "manager": "赵明辉",
+      "phone": "010-88880003",
+      "dstatus": 1,
+      "id_delete": 0
+    },
+    {
+      "did": 4,
+      "dname": "市场运营部",
+      "manager": "陈雅琴",
+      "phone": "010-88880004",
+      "dstatus": 0,
+      "id_delete": 0
+    }
+  ]
+}
