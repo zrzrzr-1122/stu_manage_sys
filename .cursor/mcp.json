@@ -3,7 +3,7 @@
     "mysql": {
       "command": "C:\\Users\\Windows\\anaconda3\\python.exe",
       "args": [
-        "d:\\git_proj_storege\\proj_0814\\mcp-mysql\\server.py"
+        "d:\\github\\stu_manage_sys\\mcp-mysql\\server.py"
       ],
       "env": {
         "MYSQL_HOST": "127.0.0.1",
