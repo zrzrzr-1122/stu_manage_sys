@@ -15,8 +15,14 @@ from model.score_model import Score
 from model.employment_model import Employment
 from model.departmentMdel import Department
 from model.consultantModel import Consultant
-from utils.md5_util import get_md5
-from jwt_auth.deps import get_current_admin
+from utils.password_util import hash_password
+from jwt_auth.access import (
+    AccessContext,
+    apply_student_scope,
+    assert_class_allowed,
+    assert_student_allowed,
+    require_perms,
+)
 from api.v1.result import ok, to_dict, ApiError
 from dao import stat_dao
 
@@ -98,9 +104,10 @@ def list_students(
     age: OptionalInt = None,
     sex: str | None = None,
     db: Session = Depends(get_db),
-    _user=Depends(get_current_admin),
+    ctx: AccessContext = Depends(require_perms("sms:student:query")),
 ):
     q = db.query(Student).filter(Student.is_delete == 0)
+    q = apply_student_scope(q, ctx)
     q = _apply_eq(q, Student, "stu_id", stu_id)
     q = _apply_like(q, Student, "stu_name", stu_name)
     q = _apply_like_int(q, Student, "class_id", class_id)
@@ -113,9 +120,10 @@ def list_students(
 
 
 @router.post("/students")
-def create_student(body: StudentBody, db: Session = Depends(get_db), _user=Depends(get_current_admin)):
+def create_student(body: StudentBody, db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:student:create"))):
     data = body.model_dump()
-    data["password_md5"] = get_md5("123456")
+    assert_class_allowed(ctx, data.get("class_id"))
+    data["password_md5"] = hash_password("123456")
     data["is_delete"] = 0
     row = Student(**data)
     db.add(row)
@@ -125,32 +133,33 @@ def create_student(body: StudentBody, db: Session = Depends(get_db), _user=Depen
 
 
 @router.put("/students/{stu_id}")
-def update_student(stu_id: int, body: StudentUpdateBody, db: Session = Depends(get_db), _user=Depends(get_current_admin)):
-    row = db.query(Student).filter(Student.stu_id == stu_id, Student.is_delete == 0).first()
-    if not row:
-        raise ApiError("学生不存在")
-    for k, v in body.model_dump(exclude_none=True).items():
+def update_student(stu_id: int, body: StudentUpdateBody, db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:student:edit"))):
+    row = assert_student_allowed(db, ctx, stu_id)
+    data = body.model_dump(exclude_none=True)
+    # 学号不可改（路径参数）；无 edit_name 时不可改姓名
+    data.pop("stu_id", None)
+    if "stu_name" in data and not ctx.has_perm("sms:student:edit_name"):
+        raise ApiError("无权修改学生姓名")
+    if "class_id" in data:
+        assert_class_allowed(ctx, data["class_id"])
+    for k, v in data.items():
         setattr(row, k, v)
     db.commit()
     return ok(True, "修改成功")
 
 
 @router.delete("/students/{stu_id}")
-def delete_student(stu_id: int, db: Session = Depends(get_db), _user=Depends(get_current_admin)):
-    row = db.query(Student).filter(Student.stu_id == stu_id, Student.is_delete == 0).first()
-    if not row:
-        raise ApiError("学生不存在或已删除")
+def delete_student(stu_id: int, db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:student:delete"))):
+    row = assert_student_allowed(db, ctx, stu_id)
     row.is_delete = 1
     db.commit()
     return ok(True, "删除成功")
 
 
 @router.put("/students/{stu_id}/password/reset")
-def reset_student_password(stu_id: int, db: Session = Depends(get_db), _user=Depends(get_current_admin)):
-    row = db.query(Student).filter(Student.stu_id == stu_id, Student.is_delete == 0).first()
-    if not row:
-        raise ApiError("学生不存在")
-    row.password_md5 = get_md5("123456")
+def reset_student_password(stu_id: int, db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:student:reset_pwd"))):
+    row = assert_student_allowed(db, ctx, stu_id)
+    row.password_md5 = hash_password("123456")
     db.commit()
     return ok(True, "已重置为 123456")
 
@@ -171,9 +180,14 @@ def list_classes(
     head_teacher: str | None = None,
     teacher: str | None = None,
     db: Session = Depends(get_db),
-    _user=Depends(get_current_admin),
+    ctx: AccessContext = Depends(require_perms("sms:class:query")),
 ):
     q = db.query(ClassInfo).filter(ClassInfo.is_delete == 0)
+    if ctx.class_ids is not None:
+        if not ctx.class_ids:
+            q = q.filter(ClassInfo.id == -1)
+        else:
+            q = q.filter(ClassInfo.id.in_(ctx.class_ids))
     q = _apply_like(q, ClassInfo, "class_id", class_id)
     q = _apply_like(q, ClassInfo, "head_teacher", head_teacher)
     q = _apply_like(q, ClassInfo, "teacher", teacher)
@@ -181,7 +195,7 @@ def list_classes(
 
 
 @router.post("/classes")
-def create_class(body: ClassBody, db: Session = Depends(get_db), _user=Depends(get_current_admin)):
+def create_class(body: ClassBody, db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:class:create"))):
     exists = db.query(ClassInfo).filter(ClassInfo.class_id == body.class_id, ClassInfo.is_delete == 0).first()
     if exists:
         raise ApiError("班级编号已存在")
@@ -192,7 +206,7 @@ def create_class(body: ClassBody, db: Session = Depends(get_db), _user=Depends(g
 
 
 @router.put("/classes/{id}")
-def update_class(id: int, body: ClassBody, db: Session = Depends(get_db), _user=Depends(get_current_admin)):
+def update_class(id: int, body: ClassBody, db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:class:edit"))):
     row = db.query(ClassInfo).filter(ClassInfo.id == id, ClassInfo.is_delete == 0).first()
     if not row:
         raise ApiError("班级不存在")
@@ -203,7 +217,7 @@ def update_class(id: int, body: ClassBody, db: Session = Depends(get_db), _user=
 
 
 @router.delete("/classes/{id}")
-def delete_class(id: int, db: Session = Depends(get_db), _user=Depends(get_current_admin)):
+def delete_class(id: int, db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:class:delete"))):
     row = db.query(ClassInfo).filter(ClassInfo.id == id, ClassInfo.is_delete == 0).first()
     if not row:
         raise ApiError("班级不存在或已删除")
@@ -229,7 +243,7 @@ def list_teachers(
     tname: str | None = None,
     class_id: int | None = None,
     db: Session = Depends(get_db),
-    _user=Depends(get_current_admin),
+    ctx: AccessContext = Depends(require_perms("sms:teacher:query")),
 ):
     q = db.query(Teacher).filter(Teacher.if_delete == 0)
     q = _apply_eq(q, Teacher, "tid", tid)
@@ -239,7 +253,7 @@ def list_teachers(
 
 
 @router.post("/teachers")
-def create_teacher(body: TeacherBody, db: Session = Depends(get_db), _user=Depends(get_current_admin)):
+def create_teacher(body: TeacherBody, db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:teacher:create"))):
     data = body.model_dump()
     data["tphone"] = str(data["tphone"])
     row = Teacher(**data)
@@ -249,7 +263,7 @@ def create_teacher(body: TeacherBody, db: Session = Depends(get_db), _user=Depen
 
 
 @router.put("/teachers/{tid}")
-def update_teacher(tid: int, body: TeacherBody, db: Session = Depends(get_db), _user=Depends(get_current_admin)):
+def update_teacher(tid: int, body: TeacherBody, db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:teacher:edit"))):
     row = db.query(Teacher).filter(Teacher.tid == tid, Teacher.if_delete == 0).first()
     if not row:
         raise ApiError("教师不存在")
@@ -260,7 +274,7 @@ def update_teacher(tid: int, body: TeacherBody, db: Session = Depends(get_db), _
 
 
 @router.delete("/teachers/{tid}")
-def delete_teacher(tid: int, db: Session = Depends(get_db), _user=Depends(get_current_admin)):
+def delete_teacher(tid: int, db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:teacher:delete"))):
     row = db.query(Teacher).filter(Teacher.tid == tid, Teacher.if_delete == 0).first()
     if not row:
         raise ApiError("教师不存在或已删除")
@@ -285,9 +299,14 @@ def list_scores(
     stu_name: str | None = None,
     exam_order: int | None = None,
     db: Session = Depends(get_db),
-    _user=Depends(get_current_admin),
+    ctx: AccessContext = Depends(require_perms("sms:score:query")),
 ):
     q = db.query(Score).filter(Score.is_deleted == 0)
+    if ctx.class_ids is not None:
+        stu_q = db.query(Student.stu_id).filter(Student.is_delete == 0)
+        stu_q = apply_student_scope(stu_q, ctx)
+        stu_ids = [r[0] for r in stu_q.all()]
+        q = q.filter(Score.stu_id.in_(stu_ids or [-1]))
     q = _apply_eq(q, Score, "stu_id", stu_id)
     q = _apply_like(q, Score, "stu_name", stu_name)
     q = _apply_eq(q, Score, "exam_order", exam_order)
@@ -295,7 +314,8 @@ def list_scores(
 
 
 @router.post("/scores")
-def create_score(body: ScoreBody, db: Session = Depends(get_db), _user=Depends(get_current_admin)):
+def create_score(body: ScoreBody, db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:score:create"))):
+    assert_student_allowed(db, ctx, body.stu_id)
     row = Score(**body.model_dump())
     db.add(row)
     db.commit()
@@ -303,10 +323,12 @@ def create_score(body: ScoreBody, db: Session = Depends(get_db), _user=Depends(g
 
 
 @router.put("/scores/{id}")
-def update_score(id: int, body: ScoreBody, db: Session = Depends(get_db), _user=Depends(get_current_admin)):
+def update_score(id: int, body: ScoreBody, db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:score:edit"))):
     row = db.query(Score).filter(Score.id == id, Score.is_deleted == 0).first()
     if not row:
         raise ApiError("成绩记录不存在")
+    assert_student_allowed(db, ctx, row.stu_id)
+    assert_student_allowed(db, ctx, body.stu_id)
     for k, v in body.model_dump().items():
         setattr(row, k, v)
     db.commit()
@@ -314,10 +336,11 @@ def update_score(id: int, body: ScoreBody, db: Session = Depends(get_db), _user=
 
 
 @router.delete("/scores/{id}")
-def delete_score(id: int, db: Session = Depends(get_db), _user=Depends(get_current_admin)):
+def delete_score(id: int, db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:score:delete"))):
     row = db.query(Score).filter(Score.id == id, Score.is_deleted == 0).first()
     if not row:
         raise ApiError("成绩记录不存在或已删除")
+    assert_student_allowed(db, ctx, row.stu_id)
     row.is_deleted = 1
     db.commit()
     return ok(True, "删除成功")
@@ -341,9 +364,14 @@ def list_employments(
     class_id: int | None = None,
     company: str | None = None,
     db: Session = Depends(get_db),
-    _user=Depends(get_current_admin),
+    ctx: AccessContext = Depends(require_perms("sms:employment:query")),
 ):
     q = db.query(Employment).filter(Employment.is_delete == 0)
+    if ctx.class_ids is not None:
+        if not ctx.class_ids:
+            q = q.filter(Employment.id == -1)
+        else:
+            q = q.filter(Employment.class_id.in_(ctx.class_ids))
     q = _apply_eq(q, Employment, "stu_id", stu_id)
     q = _apply_eq(q, Employment, "class_id", class_id)
     q = _apply_like(q, Employment, "company", company)
@@ -351,7 +379,9 @@ def list_employments(
 
 
 @router.post("/employments")
-def create_employment(body: EmploymentBody, db: Session = Depends(get_db), _user=Depends(get_current_admin)):
+def create_employment(body: EmploymentBody, db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:employment:create"))):
+    assert_class_allowed(ctx, body.class_id)
+    assert_student_allowed(db, ctx, body.stu_id)
     row = Employment(**body.model_dump())
     db.add(row)
     db.commit()
@@ -359,10 +389,13 @@ def create_employment(body: EmploymentBody, db: Session = Depends(get_db), _user
 
 
 @router.put("/employments/{emp_id}")
-def update_employment(emp_id: int, body: EmploymentBody, db: Session = Depends(get_db), _user=Depends(get_current_admin)):
+def update_employment(emp_id: int, body: EmploymentBody, db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:employment:edit"))):
     row = db.query(Employment).filter(Employment.id == emp_id, Employment.is_delete == 0).first()
     if not row:
         raise ApiError("就业记录不存在")
+    assert_class_allowed(ctx, row.class_id)
+    assert_class_allowed(ctx, body.class_id)
+    assert_student_allowed(db, ctx, body.stu_id)
     for k, v in body.model_dump().items():
         setattr(row, k, v)
     db.commit()
@@ -370,10 +403,11 @@ def update_employment(emp_id: int, body: EmploymentBody, db: Session = Depends(g
 
 
 @router.delete("/employments/{emp_id}")
-def delete_employment(emp_id: int, db: Session = Depends(get_db), _user=Depends(get_current_admin)):
+def delete_employment(emp_id: int, db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:employment:delete"))):
     row = db.query(Employment).filter(Employment.id == emp_id, Employment.is_delete == 0).first()
     if not row:
         raise ApiError("就业记录不存在或已删除")
+    assert_class_allowed(ctx, row.class_id)
     row.is_delete = 1
     db.commit()
     return ok(True, "删除成功")
@@ -394,7 +428,7 @@ def list_departments(
     dname: str | None = None,
     manager: str | None = None,
     db: Session = Depends(get_db),
-    _user=Depends(get_current_admin),
+    ctx: AccessContext = Depends(require_perms("sms:department:query")),
 ):
     q = db.query(Department).filter(Department.id_delete == 0)
     q = _apply_like(q, Department, "dname", dname)
@@ -403,7 +437,7 @@ def list_departments(
 
 
 @router.post("/departments")
-def create_department(body: DepartmentBody, db: Session = Depends(get_db), _user=Depends(get_current_admin)):
+def create_department(body: DepartmentBody, db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:department:create"))):
     exists = db.query(Department).filter(Department.dname == body.dname, Department.id_delete == 0).first()
     if exists:
         raise ApiError("部门名称已存在")
@@ -414,7 +448,7 @@ def create_department(body: DepartmentBody, db: Session = Depends(get_db), _user
 
 
 @router.put("/departments/{did}")
-def update_department(did: int, body: DepartmentBody, db: Session = Depends(get_db), _user=Depends(get_current_admin)):
+def update_department(did: int, body: DepartmentBody, db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:department:edit"))):
     row = db.query(Department).filter(Department.did == did, Department.id_delete == 0).first()
     if not row:
         raise ApiError("部门不存在")
@@ -425,7 +459,7 @@ def update_department(did: int, body: DepartmentBody, db: Session = Depends(get_
 
 
 @router.delete("/departments/{did}")
-def delete_department(did: int, db: Session = Depends(get_db), _user=Depends(get_current_admin)):
+def delete_department(did: int, db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:department:delete"))):
     row = db.query(Department).filter(Department.did == did, Department.id_delete == 0).first()
     if not row:
         raise ApiError("部门不存在或已删除")
@@ -452,7 +486,7 @@ def list_consultants(
     did: int | None = None,
     status: int | None = None,
     db: Session = Depends(get_db),
-    _user=Depends(get_current_admin),
+    ctx: AccessContext = Depends(require_perms("sms:consultant:query")),
 ):
     q = db.query(Consultant).filter(Consultant.is_delete == 0)
     q = _apply_like(q, Consultant, "cname", cname)
@@ -463,7 +497,7 @@ def list_consultants(
 
 
 @router.post("/consultants")
-def create_consultant(body: ConsultantBody, db: Session = Depends(get_db), _user=Depends(get_current_admin)):
+def create_consultant(body: ConsultantBody, db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:consultant:create"))):
     data = body.model_dump()
     data["phone"] = str(data["phone"])
     row = Consultant(**data)
@@ -473,7 +507,7 @@ def create_consultant(body: ConsultantBody, db: Session = Depends(get_db), _user
 
 
 @router.put("/consultants/{cid}")
-def update_consultant(cid: int, body: ConsultantBody, db: Session = Depends(get_db), _user=Depends(get_current_admin)):
+def update_consultant(cid: int, body: ConsultantBody, db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:consultant:edit"))):
     row = db.query(Consultant).filter(Consultant.cid == cid, Consultant.is_delete == 0).first()
     if not row:
         raise ApiError("顾问不存在")
@@ -484,7 +518,7 @@ def update_consultant(cid: int, body: ConsultantBody, db: Session = Depends(get_
 
 
 @router.delete("/consultants/{cid}")
-def delete_consultant(cid: int, db: Session = Depends(get_db), _user=Depends(get_current_admin)):
+def delete_consultant(cid: int, db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:consultant:delete"))):
     row = db.query(Consultant).filter(Consultant.cid == cid, Consultant.is_delete == 0).first()
     if not row:
         raise ApiError("顾问不存在或已删除")
@@ -495,12 +529,19 @@ def delete_consultant(cid: int, db: Session = Depends(get_db), _user=Depends(get
 
 # ---------------- 统计 ----------------
 @router.get("/overview")
-def overview(db: Session = Depends(get_db), _user=Depends(get_current_admin)):
+def overview(db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:stat:query"))):
+    stu_q = apply_student_scope(db.query(Student).filter(Student.is_delete == 0), ctx)
+    class_q = db.query(ClassInfo).filter(ClassInfo.is_delete == 0)
+    if ctx.class_ids is not None:
+        class_q = class_q.filter(ClassInfo.id.in_(ctx.class_ids or [-1]))
+    emp_q = db.query(Employment).filter(Employment.is_delete == 0)
+    if ctx.class_ids is not None:
+        emp_q = emp_q.filter(Employment.class_id.in_(ctx.class_ids or [-1]))
     return ok({
-        "studentCount": db.query(Student).filter(Student.is_delete == 0).count(),
-        "classCount": db.query(ClassInfo).filter(ClassInfo.is_delete == 0).count(),
+        "studentCount": stu_q.count(),
+        "classCount": class_q.count(),
         "teacherCount": db.query(Teacher).filter(Teacher.if_delete == 0).count(),
-        "employmentCount": db.query(Employment).filter(Employment.is_delete == 0).count(),
+        "employmentCount": emp_q.count(),
     })
 
 
@@ -517,12 +558,12 @@ def _rows_to_dict_list(rows):
 
 
 @router.get("/stats/over-30")
-def stats_over_30(db: Session = Depends(get_db), _user=Depends(get_current_admin)):
+def stats_over_30(db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:stat:query"))):
     return ok([to_dict(i) for i in stat_dao.stat_student_over_30(db)])
 
 
 @router.get("/stats/sex-count")
-def stats_sex_count(db: Session = Depends(get_db), _user=Depends(get_current_admin)):
+def stats_sex_count(db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:stat:query"))):
     rows = stat_dao.stat_student_sex_count(db)
     data = []
     for r in rows:
@@ -536,23 +577,23 @@ def stats_sex_count(db: Session = Depends(get_db), _user=Depends(get_current_adm
 
 
 @router.get("/stats/score-above-80")
-def stats_score_above_80(db: Session = Depends(get_db), _user=Depends(get_current_admin)):
+def stats_score_above_80(db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:stat:query"))):
     return ok(stat_dao.stat_student_all_score_above_80(db))
 
 
 @router.get("/stats/fail-more-twice")
-def stats_fail_more_twice(db: Session = Depends(get_db), _user=Depends(get_current_admin)):
+def stats_fail_more_twice(db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:stat:query"))):
     return ok(stat_dao.stat_student_fail_more_twice(db))
 
 
 @router.get("/stats/exam-avg/{exam_order}")
-def stats_exam_avg(exam_order: int, db: Session = Depends(get_db), _user=Depends(get_current_admin)):
+def stats_exam_avg(exam_order: int, db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:stat:query"))):
     rows = stat_dao.stat_class_avg_score_by_exam(db, exam_order)
     return ok([{"class_id": r.class_id, "avg_score": float(r.avg_score or 0)} for r in rows])
 
 
 @router.get("/stats/salary-top5")
-def stats_salary_top5(db: Session = Depends(get_db), _user=Depends(get_current_admin)):
+def stats_salary_top5(db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:stat:query"))):
     rows = stat_dao.stat_employment_salary_top5(db)
     data = []
     for r in rows:
@@ -567,7 +608,7 @@ def stats_salary_top5(db: Session = Depends(get_db), _user=Depends(get_current_a
 
 
 @router.get("/stats/emp-duration")
-def stats_emp_duration(db: Session = Depends(get_db), _user=Depends(get_current_admin)):
+def stats_emp_duration(db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:stat:query"))):
     rows = stat_dao.stat_student_employment_duration(db)
     data = []
     for r in rows:
@@ -582,6 +623,6 @@ def stats_emp_duration(db: Session = Depends(get_db), _user=Depends(get_current_
 
 
 @router.get("/stats/class-emp-avg")
-def stats_class_emp_avg(db: Session = Depends(get_db), _user=Depends(get_current_admin)):
+def stats_class_emp_avg(db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:stat:query"))):
     rows = stat_dao.stat_class_avg_employment_duration(db)
     return ok([{"class_id": r.class_id, "avg_duration_day": float(r.avg_duration_day or 0)} for r in rows])

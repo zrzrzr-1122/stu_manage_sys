@@ -9,6 +9,7 @@ from model.score_model import Score
 from model.student_model import Student
 from model.teacher_model import Teacher
 from model.user_model import SysUser
+from model.rbac_model import SysRole, SysMenu, SysUserRole, SysRoleMenu, TeacherClass
 
 __all__ = [
     "ClassInfo",
@@ -20,4 +21,9 @@ __all__ = [
     "Student",
     "Teacher",
     "SysUser",
+    "SysRole",
+    "SysMenu",
+    "SysUserRole",
+    "SysRoleMenu",
+    "TeacherClass",
 ]

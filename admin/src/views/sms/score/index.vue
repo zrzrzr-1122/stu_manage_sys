@@ -23,7 +23,7 @@
           <el-table-column label="操作" width="160" fixed="right">
             <template #default="{ row }">
               <el-button type="primary" link @click="openDialog(row)">编辑</el-button>
-              <el-button type="danger" link @click="handleDelete(row.id)">删除</el-button>
+              <el-button v-hasPerm="'sms:score:delete'" type="danger" link @click="handleDelete(row.id)">删除</el-button>
             </template>
           </el-table-column>
         </el-table>

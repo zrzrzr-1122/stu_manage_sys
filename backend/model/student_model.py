@@ -23,7 +23,7 @@ class Student(Base):
     counselor = Column(Integer, nullable=False, comment="顾问编号")
     age = Column(Integer, nullable=False, comment="年龄")
     sex = Column(String(50), comment="性别")
-    password_md5 = Column(String(32), nullable=True, comment="C端登录密码MD5，默认123456")
+    password_md5 = Column(String(128), nullable=True, comment="C端登录密码(bcrypt或历史MD5)")
     is_delete = Column(Integer, default=0, nullable=False, comment="逻辑删除字段，1是被删除了，0是未删除")
 
     scores = relationship(

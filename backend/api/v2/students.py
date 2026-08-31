@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from api.v1.result import ok, to_dict
+from api.v1.result import ok, to_dict, ApiError
 from api.v2.common import (
     OptionalInt,
     apply_eq,
@@ -15,9 +15,15 @@ from api.v2.common import (
     require_row,
 )
 from database import get_db
-from jwt_auth.deps import get_current_admin
+from jwt_auth.access import (
+    AccessContext,
+    apply_student_scope,
+    assert_class_allowed,
+    assert_student_allowed,
+    require_perms,
+)
 from model.student_model import Student
-from utils.md5_util import get_md5
+from utils.password_util import hash_password
 
 router = APIRouter(prefix="/students", tags=["学生-REST"])
 
@@ -50,13 +56,6 @@ class StudentUpdate(BaseModel):
     sex: str | None = None
 
 
-def _get_student(db: Session, student_id: int) -> Student:
-    return require_row(
-        db.query(Student).filter(Student.stu_id == student_id, Student.is_delete == 0).first(),
-        "学生不存在",
-    )
-
-
 @router.get("")
 def list_students(
     page: int = 1,
@@ -70,9 +69,10 @@ def list_students(
     age: OptionalInt = None,
     sex: str | None = None,
     db: Session = Depends(get_db),
-    _user=Depends(get_current_admin),
+    ctx: AccessContext = Depends(require_perms("sms:student:query")),
 ):
     q = db.query(Student).filter(Student.is_delete == 0)
+    q = apply_student_scope(q, ctx)
     q = apply_eq(q, Student, "stu_id", stu_id)
     q = apply_like(q, Student, "stu_name", stu_name)
     q = apply_like_int(q, Student, "class_id", class_id)
@@ -85,14 +85,24 @@ def list_students(
 
 
 @router.get("/{student_id}")
-def get_student(student_id: int, db: Session = Depends(get_db), _user=Depends(get_current_admin)):
-    return ok(public_student(to_dict(_get_student(db, student_id))))
+def get_student(
+    student_id: int,
+    db: Session = Depends(get_db),
+    ctx: AccessContext = Depends(require_perms("sms:student:query")),
+):
+    row = assert_student_allowed(db, ctx, student_id)
+    return ok(public_student(to_dict(row)))
 
 
 @router.post("")
-def create_student(body: StudentCreate, db: Session = Depends(get_db), _user=Depends(get_current_admin)):
+def create_student(
+    body: StudentCreate,
+    db: Session = Depends(get_db),
+    ctx: AccessContext = Depends(require_perms("sms:student:create")),
+):
     data = body.model_dump()
-    data["password_md5"] = get_md5("123456")
+    assert_class_allowed(ctx, data.get("class_id"))
+    data["password_md5"] = hash_password("123456")
     data["is_delete"] = 0
     row = Student(**data)
     db.add(row)
@@ -106,10 +116,16 @@ def update_student(
     student_id: int,
     body: StudentUpdate,
     db: Session = Depends(get_db),
-    _user=Depends(get_current_admin),
+    ctx: AccessContext = Depends(require_perms("sms:student:edit")),
 ):
-    row = _get_student(db, student_id)
-    for key, value in body.model_dump(exclude_none=True).items():
+    row = assert_student_allowed(db, ctx, student_id)
+    data = body.model_dump(exclude_none=True)
+    data.pop("stu_id", None)
+    if "stu_name" in data and not ctx.has_perm("sms:student:edit_name"):
+        raise ApiError("无权修改学生姓名")
+    if "class_id" in data:
+        assert_class_allowed(ctx, data["class_id"])
+    for key, value in data.items():
         setattr(row, key, value)
     db.commit()
     db.refresh(row)
@@ -121,22 +137,30 @@ def patch_student(
     student_id: int,
     body: StudentUpdate,
     db: Session = Depends(get_db),
-    _user=Depends(get_current_admin),
+    ctx: AccessContext = Depends(require_perms("sms:student:edit")),
 ):
-    return update_student(student_id, body, db, _user)
+    return update_student(student_id, body, db, ctx)
 
 
 @router.delete("/{student_id}")
-def delete_student(student_id: int, db: Session = Depends(get_db), _user=Depends(get_current_admin)):
-    row = _get_student(db, student_id)
+def delete_student(
+    student_id: int,
+    db: Session = Depends(get_db),
+    ctx: AccessContext = Depends(require_perms("sms:student:delete")),
+):
+    row = assert_student_allowed(db, ctx, student_id)
     row.is_delete = 1
     db.commit()
     return ok(True, "删除成功")
 
 
 @router.post("/{student_id}/password-resets")
-def reset_student_password(student_id: int, db: Session = Depends(get_db), _user=Depends(get_current_admin)):
-    row = _get_student(db, student_id)
-    row.password_md5 = get_md5("123456")
+def reset_student_password(
+    student_id: int,
+    db: Session = Depends(get_db),
+    ctx: AccessContext = Depends(require_perms("sms:student:reset_pwd")),
+):
+    row = assert_student_allowed(db, ctx, student_id)
+    row.password_md5 = hash_password("123456")
     db.commit()
     return ok(True, "已重置为 123456")

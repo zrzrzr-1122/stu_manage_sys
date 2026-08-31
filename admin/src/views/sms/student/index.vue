@@ -81,7 +81,7 @@
     <el-card class="page-content" shadow="never">
       <div class="page-toolbar">
         <div class="page-toolbar__left">
-          <el-button type="primary" @click="openDialog()">新增</el-button>
+          <el-button v-hasPerm="'sms:student:create'" type="primary" @click="openDialog()">新增</el-button>
         </div>
       </div>
       <div class="page-table-wrapper">
@@ -97,9 +97,9 @@
           <el-table-column prop="counselor" label="顾问编号" width="100" />
           <el-table-column label="操作" fixed="right" width="220">
             <template #default="{ row }">
-              <el-button type="primary" link @click="openDialog(row)">编辑</el-button>
-              <el-button type="primary" link @click="resetPwd(row.stu_id)">重置密码</el-button>
-              <el-button type="danger" link @click="handleDelete(row.stu_id)">删除</el-button>
+              <el-button v-hasPerm="'sms:student:edit'" type="primary" link @click="openDialog(row)">编辑</el-button>
+              <el-button v-hasPerm="'sms:student:reset_pwd'" type="primary" link @click="resetPwd(row.stu_id)">重置密码</el-button>
+              <el-button v-hasPerm="'sms:student:delete'" type="danger" link @click="handleDelete(row.stu_id)">删除</el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -117,7 +117,7 @@
     <el-dialog v-model="visible" :title="form.stu_id ? '编辑学生' : '新增学生'" width="640px">
       <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
         <el-form-item label="姓名" prop="stu_name">
-          <el-input v-model="form.stu_name" />
+          <el-input v-model="form.stu_name" :disabled="!!form.stu_id && !canEditName" />
         </el-form-item>
         <el-form-item label="班级ID" prop="class_id">
           <el-input-number v-model="form.class_id" :min="1" class="w-full" />
@@ -164,8 +164,11 @@
 <script setup lang="ts">
 import type { FormInstance, FormRules } from "element-plus";
 import SmsAPI from "@/api/sms";
+import { hasPerm } from "@/utils/auth";
 
 defineOptions({ name: "SmsStudent" });
+
+const canEditName = computed(() => hasPerm("sms:student:edit_name"));
 
 const loading = ref(false);
 const list = ref<Record<string, unknown>[]>([]);

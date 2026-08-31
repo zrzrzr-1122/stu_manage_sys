@@ -7,17 +7,11 @@ from model.student_model import Student
 from model.score_model import Score
 from model.employment_model import Employment
 from model.class_model import ClassInfo
-from utils.md5_util import get_md5
+from utils.password_util import hash_password, needs_rehash, verify_password
 from jwt_auth.deps import get_current_student
 from api.v1.result import ok, to_dict, ApiError
 
 router = APIRouter(prefix="/portal", tags=["学生门户C端"])
-
-
-class PortalProfileBody(BaseModel):
-    address: str | None = None
-    graduateSchool: str | None = None
-    major: str | None = None
 
 
 class PortalPasswordBody(BaseModel):
@@ -33,16 +27,8 @@ def portal_me(student=Depends(get_current_student)):
 
 
 @router.put("/me")
-def portal_update_me(
-    body: PortalProfileBody,
-    db: Session = Depends(get_db),
-    student=Depends(get_current_student),
-):
-    row = db.query(Student).filter(Student.stu_id == student.stu_id, Student.is_delete == 0).first()
-    for k, v in body.model_dump(exclude_none=True).items():
-        setattr(row, k, v)
-    db.commit()
-    return ok(True, "保存成功")
+def portal_update_me(student=Depends(get_current_student)):
+    raise ApiError("学生端仅支持查看个人信息，不允许修改")
 
 
 @router.put("/password")
@@ -52,12 +38,16 @@ def portal_change_password(
     student=Depends(get_current_student),
 ):
     row = db.query(Student).filter(Student.stu_id == student.stu_id, Student.is_delete == 0).first()
-    expected = row.password_md5 or get_md5("123456")
-    if get_md5(body.old_password) != expected:
+    stored = row.password_md5
+    if not stored:
+        ok_old = body.old_password == "123456"
+    else:
+        ok_old = verify_password(body.old_password, stored)
+    if not ok_old:
         raise ApiError("原密码错误")
     if len(body.new_password) < 6:
         raise ApiError("新密码至少 6 位")
-    row.password_md5 = get_md5(body.new_password)
+    row.password_md5 = hash_password(body.new_password)
     db.commit()
     return ok(True, "密码已修改，请重新登录")
 

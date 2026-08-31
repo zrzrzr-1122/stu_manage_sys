@@ -1,6 +1,7 @@
 import base64
 import random
 import string
+import time
 import uuid
 
 from fastapi import APIRouter, Depends, Request
@@ -9,13 +10,16 @@ from sqlalchemy.orm import Session
 from database import get_db
 from jwt_auth.dao import get_user_by_id
 from jwt_auth.jwt_util import issue_tokens, decode_token, JwtError
+from jwt_auth.rate_limit import clear_login_limit, hit_login_limit
 from jwt_auth.schemas import LoginBody
 from jwt_auth.service import AuthFailed, login_admin
 from api.v1.result import ok, ApiError, REFRESH_INVALID_CODE
 
 router = APIRouter(prefix="/auth", tags=["JWT登录"])
 
-_CAPTCHA_STORE: dict[str, str] = {}
+# captcha_id -> (code, expire_ts)
+_CAPTCHA_STORE: dict[str, tuple[str, float]] = {}
+_CAPTCHA_TTL = 120
 
 
 def _make_captcha_image(code: str) -> str:
@@ -29,14 +33,22 @@ def _make_captcha_image(code: str) -> str:
     return f"data:image/svg+xml;base64,{b64}"
 
 
-@router.get("/captcha")
-def captcha():
-    code = "".join(random.choices(string.digits, k=4))
-    captcha_id = uuid.uuid4().hex
-    _CAPTCHA_STORE[captcha_id] = code
+def _purge_captcha():
+    now = time.time()
+    expired = [k for k, (_, exp) in _CAPTCHA_STORE.items() if exp < now]
+    for k in expired:
+        _CAPTCHA_STORE.pop(k, None)
     if len(_CAPTCHA_STORE) > 500:
         for key in list(_CAPTCHA_STORE.keys())[:200]:
             _CAPTCHA_STORE.pop(key, None)
+
+
+@router.get("/captcha")
+def captcha():
+    _purge_captcha()
+    code = "".join(random.choices(string.digits, k=4))
+    captcha_id = uuid.uuid4().hex
+    _CAPTCHA_STORE[captcha_id] = (code, time.time() + _CAPTCHA_TTL)
     return ok({
         "captchaId": captcha_id,
         "captchaBase64": _make_captcha_image(code),
@@ -46,14 +58,25 @@ def captcha():
 @router.post("/login")
 def login(body: LoginBody, request: Request, db: Session = Depends(get_db)):
     request.state.log_operator_name = body.username
-    if body.captchaId and body.captchaCode:
-        expected = _CAPTCHA_STORE.pop(body.captchaId, None)
-        if expected is None or expected.lower() != body.captchaCode.lower():
-            raise ApiError("验证码错误")
+    client = request.client.host if request.client else "unknown"
+    limit_key = f"{client}:{body.username}"
+    if hit_login_limit(limit_key):
+        raise ApiError("尝试过于频繁，请稍后再试")
+
+    if not body.captchaId or not body.captchaCode:
+        raise ApiError("请填写验证码")
+    _purge_captcha()
+    expected_pair = _CAPTCHA_STORE.pop(body.captchaId, None)
+    if expected_pair is None or expected_pair[1] < time.time():
+        raise ApiError("验证码已失效，请刷新")
+    if expected_pair[0].lower() != body.captchaCode.lower():
+        raise ApiError("验证码错误")
+
     try:
         result = login_admin(db, body.username, body.password)
     except AuthFailed as e:
         raise ApiError(e.msg)
+    clear_login_limit(limit_key)
     request.state.log_operator_id = result["user"].id
     return ok(result["tokens"])
 

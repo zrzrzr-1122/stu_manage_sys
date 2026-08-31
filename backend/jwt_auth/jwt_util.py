@@ -3,11 +3,17 @@ from datetime import datetime, timedelta, timezone
 
 import jwt
 
-# 生产环境请用环境变量覆盖，HS256 密钥至少 32 字符
-JWT_SECRET = os.getenv("JWT_SECRET", "woling-sms-jwt-secret-key-change-me-32")
+_DEFAULT_SECRET = "woling-sms-jwt-secret-key-change-me-32"
+JWT_SECRET = os.getenv("JWT_SECRET", _DEFAULT_SECRET)
 JWT_ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_SECONDS = 2 * 60 * 60  # 2 小时
-REFRESH_TOKEN_EXPIRE_SECONDS = 7 * 24 * 60 * 60  # 7 天
+ACCESS_TOKEN_EXPIRE_SECONDS = 2 * 60 * 60
+REFRESH_TOKEN_EXPIRE_SECONDS = 7 * 24 * 60 * 60
+
+if JWT_SECRET == _DEFAULT_SECRET:
+    _strict = os.getenv("JWT_SECRET_REQUIRED", "").strip().lower() in {"1", "true", "yes", "on"}
+    if _strict:
+        raise RuntimeError("生产环境必须通过环境变量 JWT_SECRET 配置密钥")
+    print("[jwt] 警告：正在使用默认 JWT_SECRET，生产请务必修改")
 
 
 class JwtError(Exception):
