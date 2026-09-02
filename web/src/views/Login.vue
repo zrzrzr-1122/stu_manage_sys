@@ -6,11 +6,20 @@
           <v-card rounded="xl" elevation="8" class="pa-6">
             <div class="text-h5 font-weight-bold mb-1">沃林学生门户</div>
             <div class="text-medium-emphasis mb-6">使用学号登录，查看成绩与就业信息</div>
-            <v-text-field v-model="stuId" label="学号" type="number" prepend-inner-icon="mdi-card-account-details" />
             <v-text-field
+              id="portal-login-stu-id"
+              v-model="stuId"
+              label="学号"
+              type="number"
+              autocomplete="username"
+              prepend-inner-icon="mdi-card-account-details"
+            />
+            <v-text-field
+              id="portal-login-password"
               v-model="password"
               label="密码"
               :type="showPwd ? 'text' : 'password'"
+              autocomplete="current-password"
               prepend-inner-icon="mdi-lock"
               :append-inner-icon="showPwd ? 'mdi-eye-off' : 'mdi-eye'"
               @click:append-inner="showPwd = !showPwd"

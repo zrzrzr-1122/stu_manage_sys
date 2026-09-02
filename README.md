@@ -28,6 +28,7 @@ web/       C 端学生门户（Vue3 + Vuetify）
 | `JWT_SECRET` | JWT 签名密钥（生产务必修改） |
 | `ALLOW_DEFAULT_ADMIN` | `1` 时种子演示账号（默认开启） |
 | `ALLOW_OAUTH_PASSWORD_LOGIN` | `1` 允许 Swagger `/auth/login` 无验证码登录 |
+| `AMAP_WEB_KEY` | 高德 Web 服务 Key（AI 助手天气工具） |
 
 ## 角色与权限（RBAC）
 
@@ -53,6 +54,7 @@ B 端三角色（学生走 C 端，不进后台）：
 - C 端导航「AI 助手」
 - 表：`chat_api_keys` / `chat_conversations` / `chat_messages`（在同一库 `yanjiusheng`）
 - 环境变量：`ENCRYPTION_SECRET`（加密 API Key）、`DEEPSEEK_BASE_URL`
+- 天气工具（DeepSeek Chat 自动 tool 调用）：配置 `AMAP_WEB_KEY`（高德 Web 服务 Key）；未配置时模型仍可对话，但查天气会返回提示
 
 ## 数据库
 

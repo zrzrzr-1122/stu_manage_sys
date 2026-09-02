@@ -83,6 +83,28 @@ def ensure_extra_columns():
          "ALTER TABLE `department` ADD COLUMN `dstatus` INT NOT NULL DEFAULT 1 COMMENT '部门状态'"),
         ("consultant", "phone",
          "ALTER TABLE `consultant` MODIFY COLUMN `phone` VARCHAR(20) NOT NULL COMMENT '联系电话'"),
+        ("chat_conversations", "system_prompt",
+         "ALTER TABLE `chat_conversations` ADD COLUMN `system_prompt` TEXT NULL COMMENT '会话级 System Prompt'"),
+        ("chat_conversations", "max_tokens",
+         "ALTER TABLE `chat_conversations` ADD COLUMN `max_tokens` INT NULL DEFAULT 2048"),
+        ("chat_conversations", "temperature",
+         "ALTER TABLE `chat_conversations` ADD COLUMN `temperature` FLOAT NULL DEFAULT 0.7"),
+        ("chat_conversations", "stream_enabled",
+         "ALTER TABLE `chat_conversations` ADD COLUMN `stream_enabled` INT NOT NULL DEFAULT 1 COMMENT '1流式 0非流式'"),
+        ("chat_conversations", "thinking_enabled",
+         "ALTER TABLE `chat_conversations` ADD COLUMN `thinking_enabled` INT NOT NULL DEFAULT 1 COMMENT '展示思维链'"),
+        ("chat_conversations", "markdown_enabled",
+         "ALTER TABLE `chat_conversations` ADD COLUMN `markdown_enabled` INT NOT NULL DEFAULT 1 COMMENT 'Markdown 渲染'"),
+        ("chat_conversations", "memory_pinned",
+         "ALTER TABLE `chat_conversations` ADD COLUMN `memory_pinned` INT NOT NULL DEFAULT 0 COMMENT '1=钉为跨会话记忆'"),
+        ("chat_messages", "thinking_content",
+         "ALTER TABLE `chat_messages` ADD COLUMN `thinking_content` TEXT NULL COMMENT 'reasoner 思维链'"),
+        ("chat_messages", "prompt_tokens",
+         "ALTER TABLE `chat_messages` ADD COLUMN `prompt_tokens` INT NULL"),
+        ("chat_messages", "completion_tokens",
+         "ALTER TABLE `chat_messages` ADD COLUMN `completion_tokens` INT NULL"),
+        ("chat_messages", "total_tokens",
+         "ALTER TABLE `chat_messages` ADD COLUMN `total_tokens` INT NULL"),
     ]
     widen = [
         ("sys_user", "password_md5",
@@ -144,6 +166,11 @@ def ensure_indexes():
             "ALTER TABLE `chat_conversations` ADD INDEX `idx_chat_conv_owner_updated` (`owner_type`, `owner_id`, `updated_at`)",
         ),
         (
+            "chat_conversations",
+            "idx_chat_conv_owner_pinned",
+            "ALTER TABLE `chat_conversations` ADD INDEX `idx_chat_conv_owner_pinned` (`owner_type`, `owner_id`, `memory_pinned`)",
+        ),
+        (
             "student_base_info",
             "idx_student_class_delete",
             "ALTER TABLE `student_base_info` ADD INDEX `idx_student_class_delete` (`class_id`, `is_delete`)",
@@ -162,6 +189,16 @@ def ensure_indexes():
             "ai0720score",
             "idx_score_stu_deleted_exam",
             "ALTER TABLE `ai0720score` ADD INDEX `idx_score_stu_deleted_exam` (`stu_id`, `is_deleted`, `exam_order`)",
+        ),
+        (
+            "chat_llm_logs",
+            "idx_chat_llm_owner_created",
+            "ALTER TABLE `chat_llm_logs` ADD INDEX `idx_chat_llm_owner_created` (`owner_type`, `owner_id`, `created_at`)",
+        ),
+        (
+            "chat_llm_logs",
+            "idx_chat_llm_conv_created",
+            "ALTER TABLE `chat_llm_logs` ADD INDEX `idx_chat_llm_conv_created` (`conversation_id`, `created_at`)",
         ),
     ]
     # 复合索引就绪后，去掉删外键遗留的单列冗余索引
@@ -255,7 +292,13 @@ def seed_rbac_data():
 def init_database():
     import model  # noqa: F401
     from model.log_model import OperationLog  # noqa: F401
-    from model.chat_model import ChatApiKey, ChatConversation, ChatMessage  # noqa: F401
+    from model.chat_model import (  # noqa: F401
+        ChatApiKey,
+        ChatConversation,
+        ChatMessage,
+        ChatLlmLog,
+        ChatUserMemory,
+    )
     from model.rbac_model import (  # noqa: F401
         SysRole, SysMenu, SysUserRole, SysRoleMenu, TeacherClass,
     )

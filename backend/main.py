@@ -1,4 +1,13 @@
 # uvicorn main:app --host=127.0.0.1 --port=8000 --reload
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+# 优先加载仓库根目录 .env，其次 backend/.env
+_root = Path(__file__).resolve().parent.parent
+load_dotenv(_root / ".env")
+load_dotenv(Path(__file__).resolve().parent / ".env")
+
 import time
 import uvicorn
 from fastapi import FastAPI, Request
