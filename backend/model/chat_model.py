@@ -1,7 +1,7 @@
 """AI 聊天相关表（并入 yanjiusheng，无独立 chat 用户）。"""
 from datetime import datetime
 
-from sqlalchemy import BigInteger, Column, DateTime, Integer, String, Text, UniqueConstraint
+from sqlalchemy import BigInteger, Column, DateTime, Index, Integer, String, Text, UniqueConstraint
 
 from database import Base
 
@@ -30,6 +30,9 @@ class ChatApiKey(Base):
 
 class ChatConversation(Base):
     __tablename__ = "chat_conversations"
+    __table_args__ = (
+        Index("idx_chat_conv_owner_updated", "owner_type", "owner_id", "updated_at"),
+    )
 
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     owner_type = Column(String(20), nullable=False, comment="admin|student")
@@ -47,6 +50,9 @@ class ChatConversation(Base):
 
 class ChatMessage(Base):
     __tablename__ = "chat_messages"
+    __table_args__ = (
+        Index("idx_chat_msg_conv_created", "conversation_id", "created_at"),
+    )
 
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     conversation_id = Column(BigInteger, nullable=False, comment="chat_conversations.id")

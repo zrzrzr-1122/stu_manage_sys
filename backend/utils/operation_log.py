@@ -15,6 +15,9 @@ SKIP_PATHS = {
     "/api/v1/auth/captcha",
     "/api/v1/auth/refresh-token",
     "/api/v1/sse/connect",
+    # 流式响应不可缓冲整包 body，否则会拖住连接并占用 DB 会话
+    "/api/v1/chat/completions",
+    "/api/v1/portal/chat/completions",
 }
 
 MODULE_RULES = (

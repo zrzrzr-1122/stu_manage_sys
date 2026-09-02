@@ -30,6 +30,9 @@ def get_db():
     db = Session()
     try:
         yield db
+    except Exception:
+        db.rollback()
+        raise
     finally:
         db.close()
 
@@ -115,6 +118,92 @@ def ensure_extra_columns():
         print(f"[database] 补齐字段失败: {e}")
 
 
+def _index_exists(conn, table_name: str, index_name: str) -> bool:
+    row = conn.execute(text(
+        """
+        SELECT COUNT(1) FROM information_schema.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = :table_name
+          AND INDEX_NAME = :index_name
+        """
+    ), {"table_name": table_name, "index_name": index_name}).scalar()
+    return bool(row)
+
+
+def ensure_indexes():
+    """给已有表补齐业务热点索引（create_all 不会回填旧表）。"""
+    indexes = [
+        (
+            "chat_messages",
+            "idx_chat_msg_conv_created",
+            "ALTER TABLE `chat_messages` ADD INDEX `idx_chat_msg_conv_created` (`conversation_id`, `created_at`)",
+        ),
+        (
+            "chat_conversations",
+            "idx_chat_conv_owner_updated",
+            "ALTER TABLE `chat_conversations` ADD INDEX `idx_chat_conv_owner_updated` (`owner_type`, `owner_id`, `updated_at`)",
+        ),
+        (
+            "student_base_info",
+            "idx_student_class_delete",
+            "ALTER TABLE `student_base_info` ADD INDEX `idx_student_class_delete` (`class_id`, `is_delete`)",
+        ),
+        (
+            "ai0720_employment",
+            "idx_emp_stu_delete",
+            "ALTER TABLE `ai0720_employment` ADD INDEX `idx_emp_stu_delete` (`stu_id`, `is_delete`)",
+        ),
+        (
+            "ai0720_employment",
+            "idx_emp_class_delete",
+            "ALTER TABLE `ai0720_employment` ADD INDEX `idx_emp_class_delete` (`class_id`, `is_delete`)",
+        ),
+        (
+            "ai0720score",
+            "idx_score_stu_deleted_exam",
+            "ALTER TABLE `ai0720score` ADD INDEX `idx_score_stu_deleted_exam` (`stu_id`, `is_deleted`, `exam_order`)",
+        ),
+    ]
+    # 复合索引就绪后，去掉删外键遗留的单列冗余索引
+    drops = [
+        ("ai0720score", "stu_id", "idx_score_stu_deleted_exam"),
+    ]
+    try:
+        with engine.begin() as conn:
+            tables = {
+                r[0] for r in conn.execute(text(
+                    "SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE()"
+                )).fetchall()
+            }
+            created = 0
+            for table_name, index_name, ddl in indexes:
+                if table_name not in tables:
+                    continue
+                if _index_exists(conn, table_name, index_name):
+                    continue
+                try:
+                    conn.execute(text(ddl))
+                    created += 1
+                except SQLAlchemyError as e:
+                    print(f"[database] 创建索引 {index_name} 失败: {e}")
+            for table_name, index_name, require_index in drops:
+                if table_name not in tables:
+                    continue
+                if not _index_exists(conn, table_name, require_index):
+                    continue
+                if not _index_exists(conn, table_name, index_name):
+                    continue
+                try:
+                    conn.execute(text(f"ALTER TABLE `{table_name}` DROP INDEX `{index_name}`"))
+                    print(f"[database] 已删除冗余索引 {table_name}.{index_name}")
+                except SQLAlchemyError as e:
+                    print(f"[database] 删除冗余索引 {index_name} 失败: {e}")
+            if created:
+                print(f"[database] 已补齐 {created} 个业务索引")
+    except SQLAlchemyError as e:
+        print(f"[database] 补齐索引失败: {e}")
+
+
 def _env_flag(name: str, default: bool = False) -> bool:
     raw = os.getenv(name)
     if raw is None:
@@ -174,6 +263,7 @@ def init_database():
     drop_all_foreign_keys()
     Base.metadata.create_all(engine)
     ensure_extra_columns()
+    ensure_indexes()
     drop_all_foreign_keys()
     seed_admin_user()
     seed_rbac_data()

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Float, Integer, String
+from sqlalchemy import Column, Float, Index, Integer, String
 from sqlalchemy.orm import relationship
 
 from database import Base
@@ -7,6 +7,9 @@ from model.mixins import CreateUpdateDateMixin, IsDeletedMixin
 
 class Score(IsDeletedMixin, CreateUpdateDateMixin, Base):
     __tablename__ = "ai0720score"
+    __table_args__ = (
+        Index("idx_score_stu_deleted_exam", "stu_id", "is_deleted", "exam_order"),
+    )
     id = Column(
         Integer,
         primary_key=True,

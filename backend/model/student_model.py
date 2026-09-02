@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Date
+from sqlalchemy import Column, Date, Index, Integer, String
 from sqlalchemy.orm import relationship
 
 from database import Base
@@ -7,6 +7,9 @@ from model.mixins import IsDeleteMixin
 
 class Student(IsDeleteMixin, Base):
     __tablename__ = "student_base_info"
+    __table_args__ = (
+        Index("idx_student_class_delete", "class_id", "is_delete"),
+    )
     stu_id = Column(
         Integer,
         primary_key=True,

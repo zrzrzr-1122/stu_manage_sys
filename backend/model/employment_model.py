@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Date, DECIMAL, Integer, String
+from sqlalchemy import Column, Date, DECIMAL, Index, Integer, String
 from sqlalchemy.orm import relationship
 
 from database import Base
@@ -7,6 +7,10 @@ from model.mixins import CreateUpdateDateTimeMixin, IsDeleteMixin
 
 class Employment(IsDeleteMixin, CreateUpdateDateTimeMixin, Base):
     __tablename__ = "ai0720_employment"
+    __table_args__ = (
+        Index("idx_emp_stu_delete", "stu_id", "is_delete"),
+        Index("idx_emp_class_delete", "class_id", "is_delete"),
+    )
     id = Column(Integer, primary_key=True, autoincrement=True, comment="就业记录ID")
     stu_id = Column(Integer, nullable=False, comment="学生ID(关联 ai0720_student.sid)")
     class_id = Column(Integer, nullable=False, comment="班级ID(关联 ai0720_class.cid)")

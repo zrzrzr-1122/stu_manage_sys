@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from api.v1.chat_deps import ChatOwner, get_chat_owner
 from api.v1.result import ok, to_dict
 from dao import chat_dao
-from database import get_db
+from database import Session as DbSession, get_db
 from exceptions import biz_error, not_found
 from jwt_auth.access import AccessContext, require_perms
 from services.chat_models import AVAILABLE_MODELS, is_valid_model, normalize_model
@@ -344,25 +344,33 @@ async def portal_chat_completions(
 
 
 async def _stream_chat(db: Session, owner: ChatOwner, body: ChatRequest):
+    """预写库用请求 Session；LLM 流式期间不占用连接；助手消息用短会话落库。"""
     messages = [m.model_dump() for m in body.messages]
     conversation_id = body.conversation_id
     model = normalize_model(body.model)
-    api_key = chat_dao.resolve_api_key(db, owner.owner_type, owner.owner_id)
+    owner_type = owner.owner_type
+    owner_id = owner.owner_id
+    api_key = chat_dao.resolve_api_key(db, owner_type, owner_id)
 
     if conversation_id is not None:
-        conv = chat_dao.get_conversation(db, conversation_id, owner.owner_type, owner.owner_id)
+        conv = chat_dao.get_conversation(db, conversation_id, owner_type, owner_id)
         if not conv:
             conversation_id = None
         elif conv.model != model:
             chat_dao.update_conversation(
-                db, conversation_id, owner.owner_type, owner.owner_id, model=model
+                db, conversation_id, owner_type, owner_id, model=model
             )
 
     last_user = next((m for m in reversed(messages) if m["role"] == "user"), None)
     if conversation_id and last_user:
         chat_dao.add_message(db, conversation_id, "user", last_user["content"])
 
-    assistant_content: list[str] = []
+    # 预写完成即归还连接；流式阶段只用短生命周期 Session 写助手消息
+    persist_conversation_id = conversation_id
+    try:
+        db.close()
+    except Exception:
+        pass
 
     async def event_generator():
         if not api_key:
@@ -372,12 +380,28 @@ async def _stream_chat(db: Session, owner: ChatOwner, body: ChatRequest):
             )
             yield f"data: {payload}\n\n"
             return
+
+        assistant_parts: list[str] = []
         try:
             async for token in stream_chat_completion(messages, api_key=api_key, model=model):
-                assistant_content.append(token)
+                assistant_parts.append(token)
                 yield f"data: {json.dumps({'content': token}, ensure_ascii=False)}\n\n"
-            if conversation_id and assistant_content:
-                chat_dao.add_message(db, conversation_id, "assistant", "".join(assistant_content))
+
+            if persist_conversation_id and assistant_parts:
+                db2 = DbSession()
+                try:
+                    chat_dao.add_message(
+                        db2,
+                        persist_conversation_id,
+                        "assistant",
+                        "".join(assistant_parts),
+                    )
+                except Exception:
+                    db2.rollback()
+                    raise
+                finally:
+                    db2.close()
+
             yield "data: [DONE]\n\n"
         except DeepSeekError as e:
             yield f"data: {json.dumps({'error': str(e)}, ensure_ascii=False)}\n\n"

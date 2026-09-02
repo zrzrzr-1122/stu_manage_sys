@@ -67,6 +67,11 @@ async def log_request(request, call_next):
     if path not in skip_paths:
         logger.message("info", f"请求结束，状态码：{response.status_code}")
 
+    # SSE / 流式响应禁止整包缓冲，否则客户端收不到流且连接占用变长
+    media_type = (response.media_type or "").split(";")[0].strip().lower()
+    if media_type == "text/event-stream":
+        return response
+
     if should_record(request.method, path):
         body_chunks = []
         async for chunk in response.body_iterator:
