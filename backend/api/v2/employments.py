@@ -6,7 +6,8 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from api.v1.result import ok, to_dict
-from api.v2.common import OptionalInt, apply_eq, apply_like, page_ok, require_row
+from api.v2.common import OptionalInt, page_ok, require_row
+from dao import employment_dao
 from database import get_db
 from jwt_auth.deps import get_current_admin
 from model.employment_model import Employment
@@ -33,10 +34,7 @@ class EmploymentPatch(BaseModel):
 
 
 def _get_employment(db: Session, employment_id: int) -> Employment:
-    return require_row(
-        db.query(Employment).filter(Employment.id == employment_id, Employment.is_delete == 0).first(),
-        "就业记录不存在",
-    )
+    return require_row(employment_dao.get_by_id(db, employment_id), "就业记录不存在")
 
 
 @router.get("")
@@ -49,10 +47,7 @@ def list_employments(
     db: Session = Depends(get_db),
     _user=Depends(get_current_admin),
 ):
-    q = db.query(Employment).filter(Employment.is_delete == 0)
-    q = apply_eq(q, Employment, "stu_id", stu_id)
-    q = apply_eq(q, Employment, "class_id", class_id)
-    q = apply_like(q, Employment, "company", company)
+    q = employment_dao.build_list_query(db, stu_id=stu_id, class_id=class_id, company=company)
     return page_ok(q.order_by(Employment.id.desc()), page, limit)
 
 
@@ -63,10 +58,7 @@ def get_employment(employment_id: int, db: Session = Depends(get_db), _user=Depe
 
 @router.post("")
 def create_employment(body: EmploymentBody, db: Session = Depends(get_db), _user=Depends(get_current_admin)):
-    row = Employment(**body.model_dump())
-    db.add(row)
-    db.commit()
-    db.refresh(row)
+    row = employment_dao.create(db, body.model_dump())
     return ok(to_dict(row), "新增成功")
 
 
@@ -78,10 +70,7 @@ def update_employment(
     _user=Depends(get_current_admin),
 ):
     row = _get_employment(db, employment_id)
-    for key, value in body.model_dump().items():
-        setattr(row, key, value)
-    db.commit()
-    db.refresh(row)
+    row = employment_dao.update(db, row, body.model_dump())
     return ok(to_dict(row), "修改成功")
 
 
@@ -93,16 +82,12 @@ def patch_employment(
     _user=Depends(get_current_admin),
 ):
     row = _get_employment(db, employment_id)
-    for key, value in body.model_dump(exclude_none=True).items():
-        setattr(row, key, value)
-    db.commit()
-    db.refresh(row)
+    row = employment_dao.update(db, row, body.model_dump(exclude_none=True))
     return ok(to_dict(row), "修改成功")
 
 
 @router.delete("/{employment_id}")
 def delete_employment(employment_id: int, db: Session = Depends(get_db), _user=Depends(get_current_admin)):
     row = _get_employment(db, employment_id)
-    row.is_delete = 1
-    db.commit()
+    employment_dao.soft_delete(db, row)
     return ok(True, "删除成功")

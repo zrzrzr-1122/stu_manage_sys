@@ -1,13 +1,14 @@
 import os
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from fastapi.security import OAuth2PasswordRequestForm
 
 from database import get_db
 from jwt_auth.schemas import TokenOut
-from jwt_auth.service import AuthFailed, login_admin
+from jwt_auth.service import login_admin
 from jwt_auth.rate_limit import hit_login_limit, clear_login_limit
+from exceptions import ApiError, biz_error
 
 auth_router = APIRouter()
 
@@ -22,14 +23,11 @@ def login(
         form: OAuth2PasswordRequestForm = Depends(),
         db: Session = Depends(get_db)):
     if not _oauth_enabled():
-        raise HTTPException(status_code=403, detail="已禁用无验证码密码登录，请使用 /api/v1/auth/login")
+        raise biz_error("已禁用无验证码密码登录，请使用 /api/v1/auth/login")
     limit_key = f"oauth:{form.username}"
     if hit_login_limit(limit_key):
-        raise HTTPException(status_code=429, detail="尝试过于频繁，请稍后再试")
-    try:
-        result = login_admin(db, form.username, form.password)
-    except AuthFailed as e:
-        raise HTTPException(status_code=401, detail=e.msg)
+        raise biz_error("尝试过于频繁，请稍后再试")
+    result = login_admin(db, form.username, form.password)
     clear_login_limit(limit_key)
     tokens = result["tokens"]
     return {"access_token": tokens["accessToken"], "token_type": "bearer"}

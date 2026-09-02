@@ -13,6 +13,7 @@
         <v-list-item to="/profile" prepend-icon="mdi-account" title="个人信息" />
         <v-list-item to="/scores" prepend-icon="mdi-chart-box" title="我的成绩" />
         <v-list-item to="/employment" prepend-icon="mdi-briefcase" title="就业信息" />
+        <v-list-item to="/chat" prepend-icon="mdi-robot" title="AI 助手" />
       </v-list>
     </v-navigation-drawer>
 

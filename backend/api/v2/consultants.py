@@ -3,7 +3,8 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from api.v1.result import ok, to_dict
-from api.v2.common import OptionalInt, apply_eq, apply_like, page_ok, require_row
+from api.v2.common import OptionalInt, page_ok, require_row
+from dao import consultant_dao
 from database import get_db
 from jwt_auth.deps import get_current_admin
 from model.consultantModel import Consultant
@@ -30,10 +31,7 @@ class ConsultantPatch(BaseModel):
 
 
 def _get_consultant(db: Session, consultant_id: int) -> Consultant:
-    return require_row(
-        db.query(Consultant).filter(Consultant.cid == consultant_id, Consultant.is_delete == 0).first(),
-        "顾问不存在",
-    )
+    return require_row(consultant_dao.get_by_id(db, consultant_id), "顾问不存在")
 
 
 @router.get("")
@@ -46,11 +44,7 @@ def list_consultants(
     db: Session = Depends(get_db),
     _user=Depends(get_current_admin),
 ):
-    q = db.query(Consultant).filter(Consultant.is_delete == 0)
-    q = apply_like(q, Consultant, "cname", cname)
-    q = apply_eq(q, Consultant, "did", did)
-    if status is not None:
-        q = q.filter(Consultant.status == status)
+    q = consultant_dao.build_list_query(db, cname=cname, did=did, status=status)
     return page_ok(q.order_by(Consultant.cid.desc()), page, limit)
 
 
@@ -61,12 +55,7 @@ def get_consultant(consultant_id: int, db: Session = Depends(get_db), _user=Depe
 
 @router.post("")
 def create_consultant(body: ConsultantBody, db: Session = Depends(get_db), _user=Depends(get_current_admin)):
-    data = body.model_dump()
-    data["phone"] = str(data["phone"])
-    row = Consultant(**data)
-    db.add(row)
-    db.commit()
-    db.refresh(row)
+    row = consultant_dao.create(db, body.model_dump())
     return ok(to_dict(row), "新增成功")
 
 
@@ -78,10 +67,7 @@ def update_consultant(
     _user=Depends(get_current_admin),
 ):
     row = _get_consultant(db, consultant_id)
-    for key, value in body.model_dump().items():
-        setattr(row, key, str(value) if key == "phone" else value)
-    db.commit()
-    db.refresh(row)
+    row = consultant_dao.update(db, row, body.model_dump())
     return ok(to_dict(row), "修改成功")
 
 
@@ -93,16 +79,12 @@ def patch_consultant(
     _user=Depends(get_current_admin),
 ):
     row = _get_consultant(db, consultant_id)
-    for key, value in body.model_dump(exclude_none=True).items():
-        setattr(row, key, str(value) if key == "phone" else value)
-    db.commit()
-    db.refresh(row)
+    row = consultant_dao.update(db, row, body.model_dump(exclude_none=True))
     return ok(to_dict(row), "修改成功")
 
 
 @router.delete("/{consultant_id}")
 def delete_consultant(consultant_id: int, db: Session = Depends(get_db), _user=Depends(get_current_admin)):
     row = _get_consultant(db, consultant_id)
-    row.is_delete = 1
-    db.commit()
+    consultant_dao.soft_delete(db, row)
     return ok(True, "删除成功")

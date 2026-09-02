@@ -12,7 +12,7 @@ from model.rbac_model import SysMenu, SysRole, SysRoleMenu, SysUserRole, Teacher
 from model.student_model import Student
 from model.teacher_model import Teacher
 from model.user_model import SysUser
-from api.v1.result import ApiError
+from exceptions import forbidden, not_found
 
 
 ROLE_SUPER = "SUPER_ADMIN"
@@ -52,6 +52,29 @@ def load_role_codes(db: Session, user_id: int) -> list[str]:
         .all()
     )
     return [r[0] for r in rows]
+
+
+def load_role_codes_batch(db: Session, users: list[SysUser]) -> dict[int, list[str]]:
+    """批量加载用户角色，避免用户列表 N+1。"""
+    if not users:
+        return {}
+    user_ids = [user.id for user in users]
+    rows = (
+        db.query(SysUserRole.user_id, SysRole.code)
+        .join(SysRole, SysRole.id == SysUserRole.role_id)
+        .filter(
+            SysUserRole.user_id.in_(user_ids),
+            SysRole.is_delete == 0,
+        )
+        .all()
+    )
+    mapping: dict[int, list[str]] = {user_id: [] for user_id in user_ids}
+    for user_id, code in rows:
+        mapping.setdefault(user_id, []).append(code)
+    for user in users:
+        if not mapping[user.id] and user.username == "admin":
+            mapping[user.id] = [ROLE_SUPER]
+    return mapping
 
 
 def load_perms(db: Session, user_id: int) -> set[str]:
@@ -112,7 +135,7 @@ def get_access(
 def require_perms(*need: str):
     def _dep(ctx: AccessContext = Depends(get_access)) -> AccessContext:
         if not ctx.has_perm(*need):
-            raise ApiError("无权限执行该操作")
+            raise forbidden("无权限执行该操作")
         return ctx
 
     return _dep
@@ -130,12 +153,12 @@ def assert_class_allowed(ctx: AccessContext, class_id: int | None):
     if ctx.class_ids is None:
         return
     if class_id is None or int(class_id) not in ctx.class_ids:
-        raise ApiError("无权操作该班级数据")
+        raise forbidden("无权操作该班级数据")
 
 
 def assert_student_allowed(db: Session, ctx: AccessContext, stu_id: int) -> Student:
     row = db.query(Student).filter(Student.stu_id == stu_id, Student.is_delete == 0).first()
     if not row:
-        raise ApiError("学生不存在")
+        raise not_found("学生不存在")
     assert_class_allowed(ctx, row.class_id)
     return row

@@ -12,8 +12,9 @@ from jwt_auth.dao import get_user_by_id
 from jwt_auth.jwt_util import issue_tokens, decode_token, JwtError
 from jwt_auth.rate_limit import clear_login_limit, hit_login_limit
 from jwt_auth.schemas import LoginBody
-from jwt_auth.service import AuthFailed, login_admin
-from api.v1.result import ok, ApiError, REFRESH_INVALID_CODE
+from jwt_auth.service import login_admin
+from api.v1.result import ok
+from exceptions import ApiError, REFRESH_INVALID_CODE, biz_error
 
 router = APIRouter(prefix="/auth", tags=["JWT登录"])
 
@@ -61,21 +62,18 @@ def login(body: LoginBody, request: Request, db: Session = Depends(get_db)):
     client = request.client.host if request.client else "unknown"
     limit_key = f"{client}:{body.username}"
     if hit_login_limit(limit_key):
-        raise ApiError("尝试过于频繁，请稍后再试")
+        raise biz_error("尝试过于频繁，请稍后再试")
 
     if not body.captchaId or not body.captchaCode:
-        raise ApiError("请填写验证码")
+        raise biz_error("请填写验证码")
     _purge_captcha()
     expected_pair = _CAPTCHA_STORE.pop(body.captchaId, None)
     if expected_pair is None or expected_pair[1] < time.time():
-        raise ApiError("验证码已失效，请刷新")
+        raise biz_error("验证码已失效，请刷新")
     if expected_pair[0].lower() != body.captchaCode.lower():
-        raise ApiError("验证码错误")
+        raise biz_error("验证码错误")
 
-    try:
-        result = login_admin(db, body.username, body.password)
-    except AuthFailed as e:
-        raise ApiError(e.msg)
+    result = login_admin(db, body.username, body.password)
     clear_login_limit(limit_key)
     request.state.log_operator_id = result["user"].id
     return ok(result["tokens"])

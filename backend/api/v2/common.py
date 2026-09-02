@@ -1,9 +1,10 @@
 from typing import Annotated, Any, Callable
 
 from pydantic import BeforeValidator
-from sqlalchemy import String, cast
 
-from api.v1.result import ApiError, ok, to_dict
+from exceptions import not_found
+from api.v1.result import ok, to_dict
+from dao.query_helpers import apply_eq, apply_like, apply_like_int
 
 
 def blank_none(value):
@@ -13,24 +14,6 @@ def blank_none(value):
 
 
 OptionalInt = Annotated[int | None, BeforeValidator(blank_none)]
-
-
-def apply_eq(query, model, field: str, value):
-    if value is None or value == "":
-        return query
-    return query.filter(getattr(model, field) == value)
-
-
-def apply_like(query, model, field: str, value):
-    if value is None or value == "":
-        return query
-    return query.filter(getattr(model, field).like(f"%{value}%"))
-
-
-def apply_like_int(query, model, field: str, value):
-    if value is None or value == "":
-        return query
-    return query.filter(cast(getattr(model, field), String).like(f"%{value}%"))
 
 
 def public_student(data: dict | None) -> dict | None:
@@ -53,5 +36,5 @@ def page_ok(query, page: int, limit: int, transform: Callable[[Any], dict | None
 
 def require_row(row, message: str = "资源不存在"):
     if not row:
-        raise ApiError(message)
+        raise not_found(message)
     return row

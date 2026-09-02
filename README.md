@@ -43,9 +43,16 @@ B 端三角色（学生走 C 端，不进后台）：
 
 密码存储：bcrypt（兼容旧 MD5，登录成功后自动升级）。B 端登录**必须**验证码。
 
-学生门户：仅查看本人资料/成绩/就业；不可改资料。
+学生门户：仅查看本人资料/成绩/就业；不可改资料。另提供 **AI 助手**（每人自备 DeepSeek API Key，加密存储，互不可见）。
 
 账号管理 API（仅超管）：`/api/v1/system/users`、`/api/v1/system/roles`。
+
+## AI 助手
+
+- B 端侧栏「AI 助手」→「智能对话」（需权限 `chat:use`，演示角色均已授权）
+- C 端导航「AI 助手」
+- 表：`chat_api_keys` / `chat_conversations` / `chat_messages`（在同一库 `yanjiusheng`）
+- 环境变量：`ENCRYPTION_SECRET`（加密 API Key）、`DEEPSEEK_BASE_URL`
 
 ## 数据库
 

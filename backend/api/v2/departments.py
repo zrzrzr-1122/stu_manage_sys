@@ -3,7 +3,8 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from api.v1.result import ApiError, ok, to_dict
-from api.v2.common import apply_like, page_ok, require_row
+from api.v2.common import page_ok, require_row
+from dao import department_dao
 from database import get_db
 from jwt_auth.deps import get_current_admin
 from model.departmentMdel import Department
@@ -26,10 +27,7 @@ class DepartmentPatch(BaseModel):
 
 
 def _get_department(db: Session, department_id: int) -> Department:
-    return require_row(
-        db.query(Department).filter(Department.did == department_id, Department.id_delete == 0).first(),
-        "部门不存在",
-    )
+    return require_row(department_dao.get_by_id(db, department_id), "部门不存在")
 
 
 @router.get("")
@@ -41,9 +39,7 @@ def list_departments(
     db: Session = Depends(get_db),
     _user=Depends(get_current_admin),
 ):
-    q = db.query(Department).filter(Department.id_delete == 0)
-    q = apply_like(q, Department, "dname", dname)
-    q = apply_like(q, Department, "manager", manager)
+    q = department_dao.build_list_query(db, dname=dname, manager=manager)
     return page_ok(q.order_by(Department.did.desc()), page, limit)
 
 
@@ -54,13 +50,9 @@ def get_department(department_id: int, db: Session = Depends(get_db), _user=Depe
 
 @router.post("")
 def create_department(body: DepartmentBody, db: Session = Depends(get_db), _user=Depends(get_current_admin)):
-    exists = db.query(Department).filter(Department.dname == body.dname, Department.id_delete == 0).first()
-    if exists:
+    if department_dao.exists_dname(db, body.dname):
         raise ApiError("部门名称已存在")
-    row = Department(**body.model_dump())
-    db.add(row)
-    db.commit()
-    db.refresh(row)
+    row = department_dao.create(db, body.model_dump())
     return ok(to_dict(row), "新增成功")
 
 
@@ -72,10 +64,7 @@ def update_department(
     _user=Depends(get_current_admin),
 ):
     row = _get_department(db, department_id)
-    for key, value in body.model_dump().items():
-        setattr(row, key, value)
-    db.commit()
-    db.refresh(row)
+    row = department_dao.update(db, row, body.model_dump())
     return ok(to_dict(row), "修改成功")
 
 
@@ -87,16 +76,12 @@ def patch_department(
     _user=Depends(get_current_admin),
 ):
     row = _get_department(db, department_id)
-    for key, value in body.model_dump(exclude_none=True).items():
-        setattr(row, key, value)
-    db.commit()
-    db.refresh(row)
+    row = department_dao.update(db, row, body.model_dump(exclude_none=True))
     return ok(to_dict(row), "修改成功")
 
 
 @router.delete("/{department_id}")
 def delete_department(department_id: int, db: Session = Depends(get_db), _user=Depends(get_current_admin)):
     row = _get_department(db, department_id)
-    row.id_delete = 1
-    db.commit()
+    department_dao.soft_delete(db, row)
     return ok(True, "删除成功")

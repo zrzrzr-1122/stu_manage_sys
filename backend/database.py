@@ -166,6 +166,7 @@ def seed_rbac_data():
 def init_database():
     import model  # noqa: F401
     from model.log_model import OperationLog  # noqa: F401
+    from model.chat_model import ChatApiKey, ChatConversation, ChatMessage  # noqa: F401
     from model.rbac_model import (  # noqa: F401
         SysRole, SysMenu, SysUserRole, SysRoleMenu, TeacherClass,
     )

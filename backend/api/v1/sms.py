@@ -2,9 +2,8 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
-from pydantic import BaseModel, Field, BeforeValidator
-from sqlalchemy import String, cast
+from fastapi import APIRouter, Depends
+from pydantic import BaseModel, BeforeValidator
 from sqlalchemy.orm import Session
 
 from database import get_db
@@ -25,7 +24,16 @@ from jwt_auth.access import (
     require_perms,
 )
 from api.v1.result import ok, to_dict, ApiError
-from dao import stat_dao
+from dao import (
+    class_dao,
+    consultant_dao,
+    department_dao,
+    employment_dao,
+    score_dao,
+    stat_dao,
+    student_dao,
+    teacher_dao,
+)
 
 router = APIRouter(prefix="/sms", tags=["学生管理系统业务"])
 
@@ -39,28 +47,13 @@ def _blank_none(value):
 OptionalInt = Annotated[int | None, BeforeValidator(_blank_none)]
 
 
-def _page(query, page_num: int, page_size: int):
-    total = query.count()
-    rows = query.offset((page_num - 1) * page_size).limit(page_size).all()
-    return {"list": [to_dict(r) for r in rows], "total": total, "page": page_num, "limit": page_size}
-
-
-def _apply_eq(query, model, field: str, value):
-    if value is None or value == "":
-        return query
-    return query.filter(getattr(model, field) == value)
-
-
-def _apply_like(query, model, field: str, value):
-    if value is None or value == "":
-        return query
-    return query.filter(getattr(model, field).like(f"%{value}%"))
-
-
-def _apply_like_int(query, model, field: str, value):
-    if value is None or value == "":
-        return query
-    return query.filter(cast(getattr(model, field), String).like(f"%{value}%"))
+def _page_result(rows, total: int, page_num: int, page_size: int):
+    return {
+        "list": [to_dict(r) for r in rows],
+        "total": total,
+        "page": page_num,
+        "limit": page_size,
+    }
 
 
 # ---------------- 学生 ----------------
@@ -107,17 +100,20 @@ def list_students(
     db: Session = Depends(get_db),
     ctx: AccessContext = Depends(require_perms("sms:student:query")),
 ):
-    q = db.query(Student).filter(Student.is_delete == 0)
+    q = student_dao.build_list_query(
+        db,
+        stu_id=stu_id,
+        stu_name=stu_name,
+        class_id=class_id,
+        address=address,
+        education=education,
+        major=major,
+        age=age,
+        sex=sex,
+    )
     q = apply_student_scope(q, ctx)
-    q = _apply_eq(q, Student, "stu_id", stu_id)
-    q = _apply_like(q, Student, "stu_name", stu_name)
-    q = _apply_like_int(q, Student, "class_id", class_id)
-    q = _apply_like(q, Student, "address", address)
-    q = _apply_like(q, Student, "education", education)
-    q = _apply_like(q, Student, "major", major)
-    q = _apply_eq(q, Student, "age", age)
-    q = _apply_eq(q, Student, "sex", sex)
-    return ok(_page(q.order_by(Student.stu_id.desc()), pageNum, pageSize))
+    rows, total = student_dao.page(q.order_by(Student.stu_id.desc()), pageNum, pageSize)
+    return ok({"list": [to_dict(r) for r in rows], "total": total, "page": pageNum, "limit": pageSize})
 
 
 @router.post("/students")
@@ -126,10 +122,7 @@ def create_student(body: StudentBody, db: Session = Depends(get_db), ctx: Access
     assert_class_allowed(ctx, data.get("class_id"))
     data["password_md5"] = hash_password("123456")
     data["is_delete"] = 0
-    row = Student(**data)
-    db.add(row)
-    db.commit()
-    db.refresh(row)
+    row = student_dao.create(db, data)
     return ok(to_dict(row), "新增成功，默认密码 123456")
 
 
@@ -137,31 +130,26 @@ def create_student(body: StudentBody, db: Session = Depends(get_db), ctx: Access
 def update_student(stu_id: int, body: StudentUpdateBody, db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:student:edit"))):
     row = assert_student_allowed(db, ctx, stu_id)
     data = body.model_dump(exclude_none=True)
-    # 学号不可改（路径参数）；无 edit_name 时不可改姓名
     data.pop("stu_id", None)
     if "stu_name" in data and not ctx.has_perm("sms:student:edit_name"):
         raise ApiError("无权修改学生姓名")
     if "class_id" in data:
         assert_class_allowed(ctx, data["class_id"])
-    for k, v in data.items():
-        setattr(row, k, v)
-    db.commit()
+    student_dao.update(db, row, data)
     return ok(True, "修改成功")
 
 
 @router.delete("/students/{stu_id}")
 def delete_student(stu_id: int, db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:student:delete"))):
     row = assert_student_allowed(db, ctx, stu_id)
-    row.is_delete = 1
-    db.commit()
+    student_dao.soft_delete(db, row)
     return ok(True, "删除成功")
 
 
 @router.put("/students/{stu_id}/password/reset")
 def reset_student_password(stu_id: int, db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:student:reset_pwd"))):
     row = assert_student_allowed(db, ctx, stu_id)
-    row.password_md5 = hash_password("123456")
-    db.commit()
+    student_dao.reset_password(db, row, hash_password("123456"))
     return ok(True, "已重置为 123456")
 
 
@@ -183,47 +171,39 @@ def list_classes(
     db: Session = Depends(get_db),
     ctx: AccessContext = Depends(require_perms("sms:class:query")),
 ):
-    q = db.query(ClassInfo).filter(ClassInfo.is_delete == 0)
+    q = class_dao.build_list_query(db, class_id=class_id, head_teacher=head_teacher, teacher=teacher)
     if ctx.class_ids is not None:
         if not ctx.class_ids:
             q = q.filter(ClassInfo.id == -1)
         else:
             q = q.filter(ClassInfo.id.in_(ctx.class_ids))
-    q = _apply_like(q, ClassInfo, "class_id", class_id)
-    q = _apply_like(q, ClassInfo, "head_teacher", head_teacher)
-    q = _apply_like(q, ClassInfo, "teacher", teacher)
-    return ok(_page(q.order_by(ClassInfo.id.desc()), pageNum, pageSize))
+    rows, total = class_dao.page(q.order_by(ClassInfo.id.desc()), pageNum, pageSize)
+    return ok(_page_result(rows, total, pageNum, pageSize))
 
 
 @router.post("/classes")
 def create_class(body: ClassBody, db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:class:create"))):
-    exists = db.query(ClassInfo).filter(ClassInfo.class_id == body.class_id, ClassInfo.is_delete == 0).first()
-    if exists:
+    if class_dao.exists_class_id(db, body.class_id):
         raise ApiError("班级编号已存在")
-    row = ClassInfo(**body.model_dump())
-    db.add(row)
-    db.commit()
+    class_dao.create(db, body.model_dump())
     return ok(True, "新增成功")
 
 
 @router.put("/classes/{id}")
 def update_class(id: int, body: ClassBody, db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:class:edit"))):
-    row = db.query(ClassInfo).filter(ClassInfo.id == id, ClassInfo.is_delete == 0).first()
+    row = class_dao.get_by_pk(db, id)
     if not row:
         raise ApiError("班级不存在")
-    for k, v in body.model_dump(exclude_none=True).items():
-        setattr(row, k, v)
-    db.commit()
+    class_dao.update(db, row, body.model_dump(exclude_none=True), refresh=False)
     return ok(True, "修改成功")
 
 
 @router.delete("/classes/{id}")
 def delete_class(id: int, db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:class:delete"))):
-    row = db.query(ClassInfo).filter(ClassInfo.id == id, ClassInfo.is_delete == 0).first()
+    row = class_dao.get_by_pk(db, id)
     if not row:
         raise ApiError("班级不存在或已删除")
-    row.is_delete = 1
-    db.commit()
+    class_dao.soft_delete(db, row)
     return ok(True, "删除成功")
 
 
@@ -246,41 +226,32 @@ def list_teachers(
     db: Session = Depends(get_db),
     ctx: AccessContext = Depends(require_perms("sms:teacher:query")),
 ):
-    q = db.query(Teacher).filter(Teacher.if_delete == 0)
-    q = _apply_eq(q, Teacher, "tid", tid)
-    q = _apply_like(q, Teacher, "tname", tname)
-    q = _apply_eq(q, Teacher, "class_id", class_id)
-    return ok(_page(q.order_by(Teacher.tid.desc()), pageNum, pageSize))
+    q = teacher_dao.build_list_query(db, tid=tid, tname=tname, class_id=class_id)
+    rows, total = teacher_dao.page(q.order_by(Teacher.tid.desc()), pageNum, pageSize)
+    return ok(_page_result(rows, total, pageNum, pageSize))
 
 
 @router.post("/teachers")
 def create_teacher(body: TeacherBody, db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:teacher:create"))):
-    data = body.model_dump()
-    data["tphone"] = str(data["tphone"])
-    row = Teacher(**data)
-    db.add(row)
-    db.commit()
+    teacher_dao.create(db, body.model_dump())
     return ok(True, "新增成功")
 
 
 @router.put("/teachers/{tid}")
 def update_teacher(tid: int, body: TeacherBody, db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:teacher:edit"))):
-    row = db.query(Teacher).filter(Teacher.tid == tid, Teacher.if_delete == 0).first()
+    row = teacher_dao.get_by_id(db, tid)
     if not row:
         raise ApiError("教师不存在")
-    for k, v in body.model_dump(exclude_none=True).items():
-        setattr(row, k, str(v) if k == "tphone" else v)
-    db.commit()
+    teacher_dao.update(db, row, body.model_dump(exclude_none=True), refresh=False)
     return ok(True, "修改成功")
 
 
 @router.delete("/teachers/{tid}")
 def delete_teacher(tid: int, db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:teacher:delete"))):
-    row = db.query(Teacher).filter(Teacher.tid == tid, Teacher.if_delete == 0).first()
+    row = teacher_dao.get_by_id(db, tid)
     if not row:
         raise ApiError("教师不存在或已删除")
-    row.if_delete = 1
-    db.commit()
+    teacher_dao.soft_delete(db, row)
     return ok(True, "删除成功")
 
 
@@ -302,48 +273,40 @@ def list_scores(
     db: Session = Depends(get_db),
     ctx: AccessContext = Depends(require_perms("sms:score:query")),
 ):
-    q = db.query(Score).filter(Score.is_deleted == 0)
+    q = score_dao.build_list_query(db, stu_id=stu_id, stu_name=stu_name, exam_order=exam_order)
     if ctx.class_ids is not None:
         stu_q = db.query(Student.stu_id).filter(Student.is_delete == 0)
         stu_q = apply_student_scope(stu_q, ctx)
-        stu_ids = [r[0] for r in stu_q.all()]
-        q = q.filter(Score.stu_id.in_(stu_ids or [-1]))
-    q = _apply_eq(q, Score, "stu_id", stu_id)
-    q = _apply_like(q, Score, "stu_name", stu_name)
-    q = _apply_eq(q, Score, "exam_order", exam_order)
-    return ok(_page(q.order_by(Score.id.desc()), pageNum, pageSize))
+        q = q.filter(Score.stu_id.in_(stu_q))
+    rows, total = score_dao.page(q.order_by(Score.id.desc()), pageNum, pageSize)
+    return ok(_page_result(rows, total, pageNum, pageSize))
 
 
 @router.post("/scores")
 def create_score(body: ScoreBody, db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:score:create"))):
     assert_student_allowed(db, ctx, body.stu_id)
-    row = Score(**body.model_dump())
-    db.add(row)
-    db.commit()
+    score_dao.create(db, body.model_dump())
     return ok(True, "新增成功")
 
 
 @router.put("/scores/{id}")
 def update_score(id: int, body: ScoreBody, db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:score:edit"))):
-    row = db.query(Score).filter(Score.id == id, Score.is_deleted == 0).first()
+    row = score_dao.get_by_id(db, id)
     if not row:
         raise ApiError("成绩记录不存在")
     assert_student_allowed(db, ctx, row.stu_id)
     assert_student_allowed(db, ctx, body.stu_id)
-    for k, v in body.model_dump().items():
-        setattr(row, k, v)
-    db.commit()
+    score_dao.update(db, row, body.model_dump(), refresh=False)
     return ok(True, "修改成功")
 
 
 @router.delete("/scores/{id}")
 def delete_score(id: int, db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:score:delete"))):
-    row = db.query(Score).filter(Score.id == id, Score.is_deleted == 0).first()
+    row = score_dao.get_by_id(db, id)
     if not row:
         raise ApiError("成绩记录不存在或已删除")
     assert_student_allowed(db, ctx, row.stu_id)
-    row.is_deleted = 1
-    db.commit()
+    score_dao.soft_delete(db, row)
     return ok(True, "删除成功")
 
 
@@ -367,50 +330,43 @@ def list_employments(
     db: Session = Depends(get_db),
     ctx: AccessContext = Depends(require_perms("sms:employment:query")),
 ):
-    q = db.query(Employment).filter(Employment.is_delete == 0)
+    q = employment_dao.build_list_query(db, stu_id=stu_id, class_id=class_id, company=company)
     if ctx.class_ids is not None:
         if not ctx.class_ids:
             q = q.filter(Employment.id == -1)
         else:
             q = q.filter(Employment.class_id.in_(ctx.class_ids))
-    q = _apply_eq(q, Employment, "stu_id", stu_id)
-    q = _apply_eq(q, Employment, "class_id", class_id)
-    q = _apply_like(q, Employment, "company", company)
-    return ok(_page(q.order_by(Employment.id.desc()), pageNum, pageSize))
+    rows, total = employment_dao.page(q.order_by(Employment.id.desc()), pageNum, pageSize)
+    return ok(_page_result(rows, total, pageNum, pageSize))
 
 
 @router.post("/employments")
 def create_employment(body: EmploymentBody, db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:employment:create"))):
     assert_class_allowed(ctx, body.class_id)
     assert_student_allowed(db, ctx, body.stu_id)
-    row = Employment(**body.model_dump())
-    db.add(row)
-    db.commit()
+    employment_dao.create(db, body.model_dump())
     return ok(True, "新增成功")
 
 
 @router.put("/employments/{emp_id}")
 def update_employment(emp_id: int, body: EmploymentBody, db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:employment:edit"))):
-    row = db.query(Employment).filter(Employment.id == emp_id, Employment.is_delete == 0).first()
+    row = employment_dao.get_by_id(db, emp_id)
     if not row:
         raise ApiError("就业记录不存在")
     assert_class_allowed(ctx, row.class_id)
     assert_class_allowed(ctx, body.class_id)
     assert_student_allowed(db, ctx, body.stu_id)
-    for k, v in body.model_dump().items():
-        setattr(row, k, v)
-    db.commit()
+    employment_dao.update(db, row, body.model_dump(), refresh=False)
     return ok(True, "修改成功")
 
 
 @router.delete("/employments/{emp_id}")
 def delete_employment(emp_id: int, db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:employment:delete"))):
-    row = db.query(Employment).filter(Employment.id == emp_id, Employment.is_delete == 0).first()
+    row = employment_dao.get_by_id(db, emp_id)
     if not row:
         raise ApiError("就业记录不存在或已删除")
     assert_class_allowed(ctx, row.class_id)
-    row.is_delete = 1
-    db.commit()
+    employment_dao.soft_delete(db, row)
     return ok(True, "删除成功")
 
 
@@ -431,41 +387,34 @@ def list_departments(
     db: Session = Depends(get_db),
     ctx: AccessContext = Depends(require_perms("sms:department:query")),
 ):
-    q = db.query(Department).filter(Department.id_delete == 0)
-    q = _apply_like(q, Department, "dname", dname)
-    q = _apply_like(q, Department, "manager", manager)
-    return ok(_page(q.order_by(Department.did.desc()), pageNum, pageSize))
+    q = department_dao.build_list_query(db, dname=dname, manager=manager)
+    rows, total = department_dao.page(q.order_by(Department.did.desc()), pageNum, pageSize)
+    return ok(_page_result(rows, total, pageNum, pageSize))
 
 
 @router.post("/departments")
 def create_department(body: DepartmentBody, db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:department:create"))):
-    exists = db.query(Department).filter(Department.dname == body.dname, Department.id_delete == 0).first()
-    if exists:
+    if department_dao.exists_dname(db, body.dname):
         raise ApiError("部门名称已存在")
-    row = Department(**body.model_dump())
-    db.add(row)
-    db.commit()
+    department_dao.create(db, body.model_dump())
     return ok(True, "新增成功")
 
 
 @router.put("/departments/{did}")
 def update_department(did: int, body: DepartmentBody, db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:department:edit"))):
-    row = db.query(Department).filter(Department.did == did, Department.id_delete == 0).first()
+    row = department_dao.get_by_id(db, did)
     if not row:
         raise ApiError("部门不存在")
-    for k, v in body.model_dump().items():
-        setattr(row, k, v)
-    db.commit()
+    department_dao.update(db, row, body.model_dump(), refresh=False)
     return ok(True, "修改成功")
 
 
 @router.delete("/departments/{did}")
 def delete_department(did: int, db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:department:delete"))):
-    row = db.query(Department).filter(Department.did == did, Department.id_delete == 0).first()
+    row = department_dao.get_by_id(db, did)
     if not row:
         raise ApiError("部门不存在或已删除")
-    row.id_delete = 1
-    db.commit()
+    department_dao.soft_delete(db, row)
     return ok(True, "删除成功")
 
 
@@ -489,46 +438,67 @@ def list_consultants(
     db: Session = Depends(get_db),
     ctx: AccessContext = Depends(require_perms("sms:consultant:query")),
 ):
-    q = db.query(Consultant).filter(Consultant.is_delete == 0)
-    q = _apply_like(q, Consultant, "cname", cname)
-    q = _apply_eq(q, Consultant, "did", did)
-    if status is not None:
-        q = q.filter(Consultant.status == status)
-    return ok(_page(q.order_by(Consultant.cid.desc()), pageNum, pageSize))
+    q = consultant_dao.build_list_query(db, cname=cname, did=did, status=status)
+    rows, total = consultant_dao.page(q.order_by(Consultant.cid.desc()), pageNum, pageSize)
+    return ok(_page_result(rows, total, pageNum, pageSize))
 
 
 @router.post("/consultants")
 def create_consultant(body: ConsultantBody, db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:consultant:create"))):
-    data = body.model_dump()
-    data["phone"] = str(data["phone"])
-    row = Consultant(**data)
-    db.add(row)
-    db.commit()
+    consultant_dao.create(db, body.model_dump())
     return ok(True, "新增成功")
 
 
 @router.put("/consultants/{cid}")
 def update_consultant(cid: int, body: ConsultantBody, db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:consultant:edit"))):
-    row = db.query(Consultant).filter(Consultant.cid == cid, Consultant.is_delete == 0).first()
+    row = consultant_dao.get_by_id(db, cid)
     if not row:
         raise ApiError("顾问不存在")
-    for k, v in body.model_dump().items():
-        setattr(row, k, str(v) if k == "phone" else v)
-    db.commit()
+    consultant_dao.update(db, row, body.model_dump(), refresh=False)
     return ok(True, "修改成功")
 
 
 @router.delete("/consultants/{cid}")
 def delete_consultant(cid: int, db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:consultant:delete"))):
-    row = db.query(Consultant).filter(Consultant.cid == cid, Consultant.is_delete == 0).first()
+    row = consultant_dao.get_by_id(db, cid)
     if not row:
         raise ApiError("顾问不存在或已删除")
-    row.is_delete = 1
-    db.commit()
+    consultant_dao.soft_delete(db, row)
     return ok(True, "删除成功")
 
 
 # ---------------- 统计 ----------------
+def _class_no_map(db: Session) -> dict[int, str]:
+    rows = db.query(ClassInfo.id, ClassInfo.class_id).filter(ClassInfo.is_delete == 0).all()
+    return {int(r.id): r.class_id for r in rows}
+
+
+def _with_class_no(item: dict, class_map: dict[int, str]) -> dict:
+    cid = item.get("class_id")
+    if cid is not None:
+        try:
+            item["class_no"] = class_map.get(int(cid))
+        except (TypeError, ValueError):
+            item["class_no"] = None
+    else:
+        item["class_no"] = None
+    return item
+
+
+def _rows_to_dict_list(rows):
+    result = []
+    for row in rows:
+        if hasattr(row, "_mapping"):
+            result.append(
+                {k: (float(v) if isinstance(v, Decimal) else v) for k, v in dict(row._mapping).items()}
+            )
+        elif hasattr(row, "__table__"):
+            result.append(to_dict(row))
+        else:
+            result.append(row)
+    return result
+
+
 @router.get("/overview")
 def overview(db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:stat:query"))):
     stu_q = apply_student_scope(db.query(Student).filter(Student.is_delete == 0), ctx)
@@ -546,84 +516,132 @@ def overview(db: Session = Depends(get_db), ctx: AccessContext = Depends(require
     })
 
 
-def _rows_to_dict_list(rows):
-    result = []
-    for row in rows:
-        if hasattr(row, "_mapping"):
-            result.append({k: (float(v) if isinstance(v, Decimal) else v) for k, v in dict(row._mapping).items()})
-        elif hasattr(row, "__table__"):
-            result.append(to_dict(row))
-        else:
-            result.append(row)
-    return result
-
-
 @router.get("/stats/over-30")
 def stats_over_30(db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:stat:query"))):
-    return ok([to_dict(i) for i in stat_dao.stat_student_over_30(db)])
+    class_map = _class_no_map(db)
+    data = [to_dict(i) for i in stat_dao.stat_student_over_30(db, ctx.class_ids)]
+    return ok([_with_class_no(item, class_map) for item in data])
 
 
 @router.get("/stats/sex-count")
 def stats_sex_count(db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:stat:query"))):
-    rows = stat_dao.stat_student_sex_count(db)
+    class_map = _class_no_map(db)
+    rows = stat_dao.stat_student_sex_count(db, ctx.class_ids)
     data = []
     for r in rows:
-        data.append({
-            "class_id": r.class_id,
-            "total_count": int(r.total_count or 0),
-            "male_count": int(r.male_count or 0),
-            "female_count": int(r.female_count or 0),
-        })
+        data.append(
+            _with_class_no(
+                {
+                    "class_id": r.class_id,
+                    "total_count": int(r.total_count or 0),
+                    "male_count": int(r.male_count or 0),
+                    "female_count": int(r.female_count or 0),
+                },
+                class_map,
+            )
+        )
     return ok(data)
 
 
 @router.get("/stats/score-above-80")
-def stats_score_above_80(db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:stat:query"))):
-    return ok(stat_dao.stat_student_all_score_above_80(db))
+def stats_score_above_80(
+    db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:stat:query"))
+):
+    class_map = _class_no_map(db)
+    data = stat_dao.stat_student_all_score_above_80(db, ctx.class_ids)
+    return ok([_with_class_no(item, class_map) for item in data])
 
 
 @router.get("/stats/fail-more-twice")
-def stats_fail_more_twice(db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:stat:query"))):
-    return ok(stat_dao.stat_student_fail_more_twice(db))
+def stats_fail_more_twice(
+    db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:stat:query"))
+):
+    class_map = _class_no_map(db)
+    data = stat_dao.stat_student_fail_more_twice(db, ctx.class_ids)
+    return ok([_with_class_no(item, class_map) for item in data])
 
 
 @router.get("/stats/exam-avg/{exam_order}")
-def stats_exam_avg(exam_order: int, db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:stat:query"))):
-    rows = stat_dao.stat_class_avg_score_by_exam(db, exam_order)
-    return ok([{"class_id": r.class_id, "avg_score": float(r.avg_score or 0)} for r in rows])
+def stats_exam_avg(
+    exam_order: int,
+    db: Session = Depends(get_db),
+    ctx: AccessContext = Depends(require_perms("sms:stat:query")),
+):
+    class_map = _class_no_map(db)
+    rows = stat_dao.stat_class_avg_score_by_exam(db, exam_order, ctx.class_ids)
+    return ok(
+        [
+            _with_class_no(
+                {"class_id": r.class_id, "avg_score": float(r.avg_score or 0)},
+                class_map,
+            )
+            for r in rows
+        ]
+    )
 
 
 @router.get("/stats/salary-top5")
-def stats_salary_top5(db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:stat:query"))):
-    rows = stat_dao.stat_employment_salary_top5(db)
+def stats_salary_top5(
+    db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:stat:query"))
+):
+    class_map = _class_no_map(db)
+    rows = stat_dao.stat_employment_salary_top5(db, ctx.class_ids)
     data = []
     for r in rows:
-        data.append({
-            "stu_name": r.stu_name,
-            "class_id": r.class_id,
-            "offer_time": format_date(r.offer_time),
-            "company": r.company,
-            "salary": float(r.salary or 0),
-        })
+        data.append(
+            _with_class_no(
+                {
+                    "stu_name": r.stu_name,
+                    "class_id": r.class_id,
+                    "offer_time": format_date(r.offer_time),
+                    "company": r.company,
+                    "salary": float(r.salary or 0),
+                },
+                class_map,
+            )
+        )
     return ok(data)
 
 
 @router.get("/stats/emp-duration")
-def stats_emp_duration(db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:stat:query"))):
-    rows = stat_dao.stat_student_employment_duration(db)
+def stats_emp_duration(
+    db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:stat:query"))
+):
+    class_map = _class_no_map(db)
+    rows = stat_dao.stat_student_employment_duration(db, ctx.class_ids)
     data = []
     for r in rows:
-        data.append({
-            "stu_id": r.stu_id,
-            "stu_name": r.stu_name,
-            "open_time": format_date(r.open_time),
-            "offer_time": format_date(r.offer_time),
-            "duration_day": r.duration_day,
-        })
+        data.append(
+            _with_class_no(
+                {
+                    "stu_id": r.stu_id,
+                    "stu_name": r.stu_name,
+                    "class_id": r.class_id,
+                    "open_time": format_date(r.open_time),
+                    "offer_time": format_date(r.offer_time),
+                    "duration_day": r.duration_day,
+                },
+                class_map,
+            )
+        )
     return ok(data)
 
 
 @router.get("/stats/class-emp-avg")
-def stats_class_emp_avg(db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:stat:query"))):
-    rows = stat_dao.stat_class_avg_employment_duration(db)
-    return ok([{"class_id": r.class_id, "avg_duration_day": float(r.avg_duration_day or 0)} for r in rows])
+def stats_class_emp_avg(
+    db: Session = Depends(get_db), ctx: AccessContext = Depends(require_perms("sms:stat:query"))
+):
+    class_map = _class_no_map(db)
+    rows = stat_dao.stat_class_avg_employment_duration(db, ctx.class_ids)
+    return ok(
+        [
+            _with_class_no(
+                {
+                    "class_id": r.class_id,
+                    "avg_duration_day": float(r.avg_duration_day or 0),
+                },
+                class_map,
+            )
+            for r in rows
+        ]
+    )

@@ -2,28 +2,20 @@ from decimal import Decimal
 from typing import Any
 
 from fastapi.responses import JSONResponse
+
+from exceptions.errors import (
+    BIZ_ERROR_CODE,
+    REFRESH_INVALID_CODE,
+    SUCCESS_CODE,
+    TOKEN_INVALID_CODE,
+    ApiError,
+    fail_body,
+)
 from utils.date_format import serialize_date_value
-
-
-SUCCESS_CODE = "00000"
-TOKEN_INVALID_CODE = "A0230"
-REFRESH_INVALID_CODE = "A0231"
-BIZ_ERROR_CODE = "B0001"
-
-
-class ApiError(Exception):
-    def __init__(self, msg: str, code: str = BIZ_ERROR_CODE, status_code: int = 200):
-        self.msg = msg
-        self.code = code
-        self.status_code = status_code
 
 
 def ok(data: Any = None, msg: str = "一切ok") -> dict:
     return {"code": SUCCESS_CODE, "data": data, "msg": msg}
-
-
-def fail_body(msg: str, code: str = BIZ_ERROR_CODE) -> dict:
-    return {"code": code, "data": None, "msg": msg}
 
 
 def token_invalid(msg: str = "token无效，请重新登录") -> ApiError:

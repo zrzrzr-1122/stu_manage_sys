@@ -145,11 +145,38 @@ const SmsAPI = {
   },
 
   getOverview() {
-    return request<unknown, Record<string, number>>({ url: "/api/v1/sms/overview", method: "get" });
+    return request<unknown, SmsOverview>({ url: "/api/v1/sms/overview", method: "get" });
   },
-  getStat(path: string, params?: Record<string, unknown>) {
-    return request<unknown, unknown[]>({ url: `/api/v1/sms/stats/${path}`, method: "get", params });
+  getStat<T = StatRow[]>(path: string, params?: Record<string, unknown>) {
+    return request<unknown, T>({ url: `/api/v1/sms/stats/${path}`, method: "get", params });
   },
 };
+
+export interface SmsOverview {
+  studentCount: number;
+  classCount: number;
+  teacherCount: number;
+  employmentCount: number;
+}
+
+export interface StatRow {
+  class_id?: number;
+  class_no?: string | null;
+  stu_id?: number;
+  stu_name?: string;
+  age?: number;
+  total_count?: number;
+  male_count?: number;
+  female_count?: number;
+  avg_score?: number;
+  company?: string;
+  salary?: number;
+  offer_time?: string;
+  open_time?: string;
+  duration_day?: number | null;
+  avg_duration_day?: number;
+  scores?: { exam_order: number; score: number }[];
+  fail_records?: { exam_order: number; score: number }[];
+}
 
 export default SmsAPI;

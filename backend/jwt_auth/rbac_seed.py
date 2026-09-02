@@ -65,6 +65,7 @@ def seed_rbac(db: Session, *, allow_demo_users: bool = True) -> None:
         _seed_menus(db, role_map)
     else:
         _ensure_role_menu_links(db, role_map)
+        _ensure_chat_menus(db, role_map)
 
     _bind_user_role(db, "admin", ROLE_SUPER)
 
@@ -142,7 +143,11 @@ def _seed_menus(db: Session, role_map: dict[str, SysRole]) -> None:
         parent_id=0, name="System", type_=0, title="系统管理", icon="setting",
         route_path="/system", redirect="/system/account", always_show=1, sort=90,
     )
-    db.add_all([sms, org, stat, system])
+    chat = _menu(
+        parent_id=0, name="Chat", type_=0, title="AI 助手", icon="api",
+        route_path="/chat", redirect="/chat/index", always_show=1, sort=40,
+    )
+    db.add_all([sms, org, stat, system, chat])
     db.flush()
 
     leaf_defs = [
@@ -162,6 +167,8 @@ def _seed_menus(db: Session, role_map: dict[str, SysRole]) -> None:
          ["sms:consultant:query"]),
         (stat.id, "SmsStat", "数据统计", "overview", "sms/stat/index", "menu", 1,
          ["sms:stat:query"]),
+        (chat.id, "ChatIndex", "智能对话", "index", "chat/index", "api", 1,
+         ["chat:use"]),
         (system.id, "SysAccount", "用户管理", "account", "system/account/index", "user", 1,
          ["system:user:query"]),
         (system.id, "SysRolePerm", "角色权限", "role-perm", "system/role-perm/index", "role", 2,
@@ -170,7 +177,9 @@ def _seed_menus(db: Session, role_map: dict[str, SysRole]) -> None:
          ["system:log:query"]),
     ]
 
-    menu_by_name: dict[str, SysMenu] = {"Sms": sms, "Org": org, "StatRoot": stat, "System": system}
+    menu_by_name: dict[str, SysMenu] = {
+        "Sms": sms, "Org": org, "StatRoot": stat, "System": system, "Chat": chat,
+    }
     for parent_id, name, title, path, component, icon, sort, perms in leaf_defs:
         m = _menu(
             parent_id=parent_id, name=name, type_=1, title=title,
@@ -237,6 +246,7 @@ def _seed_menus(db: Session, role_map: dict[str, SysRole]) -> None:
         "sms:department:query", "sms:department:create", "sms:department:edit", "sms:department:delete",
         "sms:consultant:query", "sms:consultant:create", "sms:consultant:edit", "sms:consultant:delete",
         "sms:stat:query",
+        "chat:use",
         "system:log:query",
     }
     teacher_perms = {
@@ -245,6 +255,7 @@ def _seed_menus(db: Session, role_map: dict[str, SysRole]) -> None:
         "sms:score:query", "sms:score:create", "sms:score:edit",
         "sms:employment:query", "sms:employment:edit",
         "sms:stat:query",
+        "chat:use",
     }
 
     # 菜单可见：拥有对应 query 权限的目录/页面也要挂上
@@ -280,3 +291,44 @@ def _ensure_role_menu_links(db: Session, role_map: dict[str, SysRole]) -> None:
     for m in all_menus:
         if m.id not in existing:
             db.add(SysRoleMenu(role_id=super_id, menu_id=m.id))
+
+
+def _ensure_chat_menus(db: Session, role_map: dict[str, SysRole]) -> None:
+    """已有库补齐 AI 助手菜单与角色授权。"""
+    chat_root = db.query(SysMenu).filter(SysMenu.name == "Chat", SysMenu.is_delete == 0).first()
+    if not chat_root:
+        chat_root = _menu(
+            parent_id=0, name="Chat", type_=0, title="AI 助手", icon="api",
+            route_path="/chat", redirect="/chat/index", always_show=1, sort=40,
+        )
+        db.add(chat_root)
+        db.flush()
+
+    chat_page = db.query(SysMenu).filter(SysMenu.name == "ChatIndex", SysMenu.is_delete == 0).first()
+    if not chat_page:
+        chat_page = _menu(
+            parent_id=chat_root.id, name="ChatIndex", type_=1, title="智能对话",
+            route_path="index", component="chat/index", icon="api", sort=1, perm="chat:use",
+        )
+        db.add(chat_page)
+        db.flush()
+
+    # 纠正历史种子里不存在的 message 图标
+    if chat_root.icon == "message":
+        chat_root.icon = "api"
+    if chat_page.icon == "message":
+        chat_page.icon = "api"
+
+    menu_ids = {chat_root.id, chat_page.id}
+    for role_code in (ROLE_SUPER, ROLE_DIRECTOR, ROLE_TEACHER):
+        role = role_map.get(role_code)
+        if not role:
+            continue
+        existing = {
+            r.menu_id
+            for r in db.query(SysRoleMenu).filter(SysRoleMenu.role_id == role.id).all()
+        }
+        for mid in menu_ids:
+            if mid not in existing:
+                db.add(SysRoleMenu(role_id=role.id, menu_id=mid))
+    db.flush()

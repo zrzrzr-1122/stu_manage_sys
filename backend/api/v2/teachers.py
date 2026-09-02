@@ -3,7 +3,8 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from api.v1.result import ok, to_dict
-from api.v2.common import OptionalInt, apply_eq, apply_like, page_ok, require_row
+from api.v2.common import OptionalInt, page_ok, require_row
+from dao import teacher_dao
 from database import get_db
 from jwt_auth.deps import get_current_admin
 from model.teacher_model import Teacher
@@ -28,10 +29,7 @@ class TeacherPatch(BaseModel):
 
 
 def _get_teacher(db: Session, teacher_id: int) -> Teacher:
-    return require_row(
-        db.query(Teacher).filter(Teacher.tid == teacher_id, Teacher.if_delete == 0).first(),
-        "教师不存在",
-    )
+    return require_row(teacher_dao.get_by_id(db, teacher_id), "教师不存在")
 
 
 @router.get("")
@@ -44,10 +42,7 @@ def list_teachers(
     db: Session = Depends(get_db),
     _user=Depends(get_current_admin),
 ):
-    q = db.query(Teacher).filter(Teacher.if_delete == 0)
-    q = apply_eq(q, Teacher, "tid", tid)
-    q = apply_like(q, Teacher, "tname", tname)
-    q = apply_eq(q, Teacher, "class_id", class_id)
+    q = teacher_dao.build_list_query(db, tid=tid, tname=tname, class_id=class_id)
     return page_ok(q.order_by(Teacher.tid.desc()), page, limit)
 
 
@@ -58,12 +53,7 @@ def get_teacher(teacher_id: int, db: Session = Depends(get_db), _user=Depends(ge
 
 @router.post("")
 def create_teacher(body: TeacherBody, db: Session = Depends(get_db), _user=Depends(get_current_admin)):
-    data = body.model_dump()
-    data["tphone"] = str(data["tphone"])
-    row = Teacher(**data)
-    db.add(row)
-    db.commit()
-    db.refresh(row)
+    row = teacher_dao.create(db, body.model_dump())
     return ok(to_dict(row), "新增成功")
 
 
@@ -75,10 +65,7 @@ def update_teacher(
     _user=Depends(get_current_admin),
 ):
     row = _get_teacher(db, teacher_id)
-    for key, value in body.model_dump(exclude_none=True).items():
-        setattr(row, key, str(value) if key == "tphone" else value)
-    db.commit()
-    db.refresh(row)
+    row = teacher_dao.update(db, row, body.model_dump(exclude_none=True))
     return ok(to_dict(row), "修改成功")
 
 
@@ -90,16 +77,12 @@ def patch_teacher(
     _user=Depends(get_current_admin),
 ):
     row = _get_teacher(db, teacher_id)
-    for key, value in body.model_dump(exclude_none=True).items():
-        setattr(row, key, str(value) if key == "tphone" else value)
-    db.commit()
-    db.refresh(row)
+    row = teacher_dao.update(db, row, body.model_dump(exclude_none=True))
     return ok(to_dict(row), "修改成功")
 
 
 @router.delete("/{teacher_id}")
 def delete_teacher(teacher_id: int, db: Session = Depends(get_db), _user=Depends(get_current_admin)):
     row = _get_teacher(db, teacher_id)
-    row.if_delete = 1
-    db.commit()
+    teacher_dao.soft_delete(db, row)
     return ok(True, "删除成功")

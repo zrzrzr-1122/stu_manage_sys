@@ -17,6 +17,7 @@ const router = createRouter({
         { path: "profile", name: "Profile", component: () => import("@/views/Profile.vue") },
         { path: "scores", name: "Scores", component: () => import("@/views/Scores.vue") },
         { path: "employment", name: "Employment", component: () => import("@/views/Employment.vue") },
+        { path: "chat", name: "Chat", component: () => import("@/views/Chat.vue") },
       ],
     },
   ],

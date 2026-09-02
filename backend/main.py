@@ -1,10 +1,8 @@
 # uvicorn main:app --host=127.0.0.1 --port=8000 --reload
 import time
 import uvicorn
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from fastapi.exceptions import RequestValidationError
 from starlette.responses import Response as StarletteResponse
 
 from database import init_database
@@ -13,11 +11,13 @@ from utils.operation_log import record_from_request, should_record
 from jwt_auth.oauth_router import auth_router
 from api.v1.router import v1_router
 from api.v2.router import v2_router
-from api.v1.result import ApiError, json_error, fail_body, ok, TOKEN_INVALID_CODE, BIZ_ERROR_CODE
+from api.v1.result import ok
+from exceptions import register_exception_handlers
 
 init_database()
 
 app = FastAPI(title="沃林学生管理系统", version="2.0")
+register_exception_handlers(app)
 
 app.add_middleware(
     CORSMiddleware,
@@ -31,29 +31,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-@app.exception_handler(ApiError)
-async def api_error_handler(_: Request, exc: ApiError):
-    return json_error(exc)
-
-
-@app.exception_handler(HTTPException)
-async def http_error_handler(request: Request, exc: HTTPException):
-    path = request.url.path
-    if path.startswith("/api/"):
-        code = TOKEN_INVALID_CODE if exc.status_code == 401 else BIZ_ERROR_CODE
-        msg = exc.detail if isinstance(exc.detail, str) else str(exc.detail)
-        status = 401 if exc.status_code == 401 else 200
-        return JSONResponse(status_code=status, content=fail_body(msg, code))
-    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
-
-
-@app.exception_handler(RequestValidationError)
-async def validation_error_handler(request: Request, exc: RequestValidationError):
-    if request.url.path.startswith("/api/"):
-        return JSONResponse(status_code=200, content=fail_body("请求参数不正确"))
-    return JSONResponse(status_code=422, content={"detail": exc.errors()})
 
 
 @app.get("/", tags=["开始访问测试"])
