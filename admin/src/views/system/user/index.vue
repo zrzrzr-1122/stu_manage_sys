@@ -41,7 +41,7 @@
               range-separator="~"
               start-placeholder="开始日期"
               end-placeholder="结束日期"
-              value-format="YYYY-MM-DD"
+              :value-format="DATE_FORMAT"
               style="width: 240px"
             />
           </el-form-item>
@@ -339,6 +339,7 @@ import { useAppStore, useUserStore } from "@/stores";
 import { usePageTable, useTableSelection } from "@/composables";
 import { CommonStatus, DeviceEnum, DialogMode, UserGender } from "@/enums";
 import { downloadFile } from "@/utils";
+import { DATE_FORMAT } from "@/constants/date";
 
 import UserDeptTree from "./components/UserDeptTree.vue";
 import UserImportDialog from "./components/UserImportDialog.vue";

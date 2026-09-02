@@ -125,6 +125,7 @@ python test/run_all.py          # 生成 test/report.md
 
 ## 说明
 
+- 日期格式：纯日期 `YYYY-MM-DD`，日期时间 `YYYY-MM-DD HH:mm:ss`（后端 `utils/date_format.py`，前端 `@/constants/date`）
 - 登录使用 JWT（HS256），代码在 `backend/jwt_auth/`：access 2 小时，refresh 7 天。
 - 成绩表、顾问表原先的数据库外键已去掉，关联 ID 仍由接口层写入，查询用 JOIN，不再依赖数据库约束。
 - 原有 `/student`、`/class` 等旧接口仍保留，新前台走 `/api/v1/sms/*` 与 `/api/v1/portal/*`。

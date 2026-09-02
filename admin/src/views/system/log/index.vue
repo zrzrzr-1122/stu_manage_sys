@@ -19,7 +19,7 @@
             range-separator="~"
             start-placeholder="开始时间"
             end-placeholder="截止时间"
-            value-format="YYYY-MM-DD"
+            :value-format="DATE_FORMAT"
             style="width: 260px"
           />
         </el-form-item>
@@ -141,6 +141,7 @@ import { FullScreen, Refresh } from "@element-plus/icons-vue";
 import LogAPI from "@/api/system/log";
 import type { LogItem, LogQueryParams } from "@/api/system/log";
 import { usePageTable } from "@/composables";
+import { DATE_FORMAT } from "@/constants/date";
 
 defineOptions({
   name: "Log",

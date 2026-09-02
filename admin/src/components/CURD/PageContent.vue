@@ -150,7 +150,7 @@
               <template v-if="col.prop">
                 {{
                   scope.row[col.prop]
-                    ? useDateFormat(scope.row[col.prop], col.dateFormat ?? "YYYY-MM-DD HH:mm:ss")
+                    ? useDateFormat(scope.row[col.prop], col.dateFormat ?? DATETIME_FORMAT)
                         .value
                     : ""
                 }}
@@ -324,6 +324,7 @@
 <script setup lang="ts">
 import { hasPerm } from "@/utils/auth";
 import { useDateFormat, useThrottleFn } from "@vueuse/core";
+import { DATETIME_FORMAT } from "@/constants/date";
 import {
   genFileId,
   type FormInstance,

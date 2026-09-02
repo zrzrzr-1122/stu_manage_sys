@@ -249,6 +249,7 @@ import type { VisitOverviewDetail, VisitTrendDetail } from "@/api/system/log";
 import { useUserStore } from "@/stores/user";
 import { useSettingsStore } from "@/stores/settings";
 import { formatGrowthRate } from "@/utils";
+import { DATE_FORMAT } from "@/constants/date";
 import { useTransition } from "@vueuse/core";
 import {
   User,
@@ -437,8 +438,8 @@ function fetchVisitTrendData() {
     .subtract(visitTrendDateRange.value - 1, "day")
     .toDate();
   LogAPI.getVisitTrend({
-    startDate: dayjs(s).format("YYYY-MM-DD"),
-    endDate: dayjs(new Date()).format("YYYY-MM-DD"),
+    startDate: dayjs(s).format(DATE_FORMAT),
+    endDate: dayjs(new Date()).format(DATE_FORMAT),
   }).then((d) => {
     visitTrendData.value = d;
     updateVisitTrendChartOptions(d);

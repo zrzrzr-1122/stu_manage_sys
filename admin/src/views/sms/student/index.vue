@@ -144,10 +144,10 @@
           <el-input v-model="form.education" />
         </el-form-item>
         <el-form-item label="入学时间">
-          <el-date-picker v-model="form.startTime" value-format="YYYY-MM-DD" />
+          <el-date-picker v-model="form.startTime" :value-format="DATE_FORMAT" />
         </el-form-item>
         <el-form-item label="毕业时间">
-          <el-date-picker v-model="form.endTime" value-format="YYYY-MM-DD" />
+          <el-date-picker v-model="form.endTime" :value-format="DATE_FORMAT" />
         </el-form-item>
         <el-form-item label="顾问编号" prop="counselor">
           <el-input-number v-model="form.counselor" :min="1" />
@@ -165,6 +165,7 @@
 import type { FormInstance, FormRules } from "element-plus";
 import SmsAPI from "@/api/sms";
 import { hasPerm } from "@/utils/auth";
+import { DATE_FORMAT } from "@/constants/date";
 
 defineOptions({ name: "SmsStudent" });
 

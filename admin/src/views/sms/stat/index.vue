@@ -47,7 +47,9 @@
         <el-table-column prop="class_id" label="班级" width="90" />
         <el-table-column prop="company" label="公司" />
         <el-table-column prop="salary" label="薪资" width="110" />
-        <el-table-column prop="offer_time" label="Offer 时间" width="120" />
+        <el-table-column prop="offer_time" label="Offer 时间" width="120">
+          <template #default="{ row }">{{ formatDate(row.offer_time) }}</template>
+        </el-table-column>
       </el-table>
     </el-card>
 
@@ -62,6 +64,7 @@
 </template>
 <script setup lang="ts">
 import SmsAPI from "@/api/sms";
+import { formatDate } from "@/constants/date";
 defineOptions({ name: "SmsStat" });
 
 const cards = ref([

@@ -16,6 +16,7 @@ from model.employment_model import Employment
 from model.departmentMdel import Department
 from model.consultantModel import Consultant
 from utils.password_util import hash_password
+from utils.date_format import format_date
 from jwt_auth.access import (
     AccessContext,
     apply_student_scope,
@@ -600,7 +601,7 @@ def stats_salary_top5(db: Session = Depends(get_db), ctx: AccessContext = Depend
         data.append({
             "stu_name": r.stu_name,
             "class_id": r.class_id,
-            "offer_time": r.offer_time.isoformat() if r.offer_time else None,
+            "offer_time": format_date(r.offer_time),
             "company": r.company,
             "salary": float(r.salary or 0),
         })
@@ -615,8 +616,8 @@ def stats_emp_duration(db: Session = Depends(get_db), ctx: AccessContext = Depen
         data.append({
             "stu_id": r.stu_id,
             "stu_name": r.stu_name,
-            "open_time": r.open_time.isoformat() if r.open_time else None,
-            "offer_time": r.offer_time.isoformat() if r.offer_time else None,
+            "open_time": format_date(r.open_time),
+            "offer_time": format_date(r.offer_time),
             "duration_day": r.duration_day,
         })
     return ok(data)

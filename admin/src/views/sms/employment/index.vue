@@ -19,8 +19,12 @@
           <el-table-column prop="class_id" label="班级ID" width="90" />
           <el-table-column prop="company" label="公司" min-width="160" show-overflow-tooltip />
           <el-table-column prop="salary" label="薪资" width="110" />
-          <el-table-column prop="open_time" label="开放时间" width="120" />
-          <el-table-column prop="offer_time" label="Offer时间" width="120" />
+          <el-table-column prop="open_time" label="开放时间" width="120">
+            <template #default="{ row }">{{ formatDate(row.open_time) }}</template>
+          </el-table-column>
+          <el-table-column prop="offer_time" label="Offer时间" width="120">
+            <template #default="{ row }">{{ formatDate(row.offer_time) }}</template>
+          </el-table-column>
           <el-table-column label="操作" width="160" fixed="right">
             <template #default="{ row }">
               <el-button type="primary" link @click="openDialog(row)">编辑</el-button>
@@ -44,8 +48,8 @@
         <el-form-item label="班级ID" prop="class_id"><el-input-number v-model="form.class_id" :min="1" /></el-form-item>
         <el-form-item label="公司"><el-input v-model="form.company" /></el-form-item>
         <el-form-item label="薪资"><el-input-number v-model="form.salary" :min="0" :step="1000" /></el-form-item>
-        <el-form-item label="开放时间"><el-date-picker v-model="form.open_time" value-format="YYYY-MM-DD" /></el-form-item>
-        <el-form-item label="Offer时间"><el-date-picker v-model="form.offer_time" value-format="YYYY-MM-DD" /></el-form-item>
+        <el-form-item label="开放时间"><el-date-picker v-model="form.open_time" :value-format="DATE_FORMAT" /></el-form-item>
+        <el-form-item label="Offer时间"><el-date-picker v-model="form.offer_time" :value-format="DATE_FORMAT" /></el-form-item>
       </el-form>
       <template #footer>
         <el-button type="primary" @click="submit">确定</el-button>
@@ -57,6 +61,7 @@
 <script setup lang="ts">
 import type { FormInstance, FormRules } from "element-plus";
 import SmsAPI from "@/api/sms";
+import { DATE_FORMAT, formatDate } from "@/constants/date";
 defineOptions({ name: "SmsEmployment" });
 const loading = ref(false);
 const list = ref<Record<string, unknown>[]>([]);

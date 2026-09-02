@@ -22,7 +22,9 @@
         <el-table v-loading="loading" class="page-table" :data="list" height="100%" border>
           <el-table-column prop="id" label="ID" width="80" />
           <el-table-column prop="class_id" label="班级编号" min-width="120" />
-          <el-table-column prop="start_time" label="开课时间" min-width="160" />
+          <el-table-column prop="start_time" label="开课时间" min-width="160">
+            <template #default="{ row }">{{ formatDateTime(row.start_time) }}</template>
+          </el-table-column>
           <el-table-column prop="head_teacher" label="班主任" width="120" />
           <el-table-column prop="teacher" label="授课老师" width="120" />
           <el-table-column label="操作" width="160" fixed="right">
@@ -46,7 +48,7 @@
       <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
         <el-form-item label="班级编号" prop="class_id"><el-input v-model="form.class_id" /></el-form-item>
         <el-form-item label="开课时间">
-          <el-date-picker v-model="form.start_time" type="datetime" value-format="YYYY-MM-DD HH:mm:ss" />
+          <el-date-picker v-model="form.start_time" type="datetime" :value-format="DATETIME_FORMAT" />
         </el-form-item>
         <el-form-item label="班主任"><el-input v-model="form.head_teacher" /></el-form-item>
         <el-form-item label="授课老师"><el-input v-model="form.teacher" /></el-form-item>
@@ -61,6 +63,7 @@
 <script setup lang="ts">
 import type { FormInstance, FormRules } from "element-plus";
 import SmsAPI from "@/api/sms";
+import { DATETIME_FORMAT, formatDateTime } from "@/constants/date";
 defineOptions({ name: "SmsClass" });
 const loading = ref(false);
 const list = ref<Record<string, unknown>[]>([]);

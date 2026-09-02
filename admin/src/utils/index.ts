@@ -10,6 +10,7 @@ export { isExternal, isValidURL, isEmail, isMobile, VALIDATORS } from "./validat
 
 // 数据格式化
 export { formatGrowthRate, formatFileSize, formatNumber, formatCurrency } from "./format";
+export { DATE_FORMAT, DATETIME_FORMAT, formatDate, formatDateTime } from "@/constants/date";
 
 // 文件下载
 export { downloadFile } from "./download";

@@ -17,6 +17,8 @@ from datetime import datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "backend"))
+from utils.date_format import format_datetime
 TEST_DIR = ROOT / "test"
 REPORT = TEST_DIR / "report.md"
 JSON_REPORT = TEST_DIR / ".pytest_report.json"
@@ -128,7 +130,7 @@ def main() -> int:
     lines = [
         "# 自动化测试报告",
         "",
-        f"- **生成时间**：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+        f"- **生成时间**：{format_datetime(datetime.now())}",
         "- **执行命令**：`python test/run_all.py`",
         f"- **总结果**：{status}",
         f"- **统计**：共 {total} 项 — 通过 {passed} / 失败 {failed} / 跳过 {skipped} / 错误 {errors}",

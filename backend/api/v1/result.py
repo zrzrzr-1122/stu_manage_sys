@@ -1,8 +1,8 @@
-from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 
 from fastapi.responses import JSONResponse
+from utils.date_format import serialize_date_value
 
 
 SUCCESS_CODE = "00000"
@@ -42,10 +42,9 @@ def to_dict(obj: Any) -> dict | None:
 
 
 def _serialize(value: Any) -> Any:
-    if isinstance(value, datetime):
-        return value.strftime("%Y-%m-%d %H:%M:%S")
-    if isinstance(value, date):
-        return value.isoformat()
+    serialized = serialize_date_value(value)
+    if serialized is not value:
+        return serialized
     if isinstance(value, Decimal):
         return float(value)
     return value

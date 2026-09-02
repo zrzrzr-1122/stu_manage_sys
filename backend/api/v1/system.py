@@ -19,6 +19,7 @@ from model.log_model import OperationLog
 from model.rbac_model import SysMenu, SysRole, SysUserRole
 from model.user_model import SysUser
 from utils.password_util import hash_password
+from utils.date_format import format_date, format_datetime
 
 router = APIRouter(tags=["有来系统适配"])
 
@@ -355,7 +356,7 @@ def _log_item(row: OperationLog) -> dict:
         "status": row.status,
         "executionTime": row.execution_time,
         "errorMsg": row.error_msg,
-        "createTime": row.create_time.strftime("%Y-%m-%d %H:%M:%S") if row.create_time else None,
+        "createTime": format_datetime(row.create_time),
     }
 
 
@@ -430,7 +431,7 @@ def visit_trend(
     cur = start
     n = 1
     while cur <= end:
-        dates.append(cur.isoformat())
+        dates.append(format_date(cur))
         pv_list.append(8 + n)
         uv_list.append(3 + n)
         cur += timedelta(days=1)
