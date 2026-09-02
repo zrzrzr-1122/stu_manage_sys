@@ -1,20 +1,18 @@
-from datetime import datetime
-
-from sqlalchemy import Column, DateTime, Integer, String, UniqueConstraint
+from sqlalchemy import Column, Integer, String, UniqueConstraint
 
 from database import Base
+from model.mixins import CreateTimeMixin, IsDeleteMixin
 
 
-class SysRole(Base):
+class SysRole(IsDeleteMixin, Base):
     __tablename__ = "sys_role"
     id = Column(Integer, primary_key=True, autoincrement=True)
     code = Column(String(50), unique=True, nullable=False, comment="角色编码")
     name = Column(String(50), nullable=False, comment="角色名称")
     remark = Column(String(200), nullable=True)
-    is_delete = Column(Integer, default=0, nullable=False)
 
 
-class SysMenu(Base):
+class SysMenu(IsDeleteMixin, Base):
     __tablename__ = "sys_menu"
     id = Column(Integer, primary_key=True, autoincrement=True)
     parent_id = Column(Integer, default=0, nullable=False)
@@ -32,7 +30,6 @@ class SysMenu(Base):
     keep_alive = Column(Integer, default=1, nullable=False)
     always_show = Column(Integer, default=0, nullable=False)
     redirect = Column(String(128), nullable=True)
-    is_delete = Column(Integer, default=0, nullable=False)
 
 
 class SysUserRole(Base):
@@ -51,11 +48,11 @@ class SysRoleMenu(Base):
     menu_id = Column(Integer, nullable=False)
 
 
-class TeacherClass(Base):
+class TeacherClass(CreateTimeMixin, Base):
     """任课老师可管理的班级（class_info.id）。"""
+
     __tablename__ = "teacher_class"
     __table_args__ = (UniqueConstraint("teacher_id", "class_id", name="uk_teacher_class"),)
     id = Column(Integer, primary_key=True, autoincrement=True)
     teacher_id = Column(Integer, nullable=False, comment="ai0720_teacher.tid")
     class_id = Column(Integer, nullable=False, comment="class_info.id")
-    create_time = Column(DateTime, default=datetime.now, nullable=False)

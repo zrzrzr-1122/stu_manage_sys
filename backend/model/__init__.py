@@ -10,6 +10,18 @@ from model.student_model import Student
 from model.teacher_model import Teacher
 from model.user_model import SysUser
 from model.rbac_model import SysRole, SysMenu, SysUserRole, SysRoleMenu, TeacherClass
+from model.mixins import (
+    AuditCreateTimeMixin,
+    CreateTimeMixin,
+    CreateUpdateDateMicroMixin,
+    CreateUpdateDateMixin,
+    CreateUpdateDateTimeMixin,
+    CreateUpdateTimeMixin,
+    IdDeleteMixin,
+    IfDeleteMixin,
+    IsDeleteMixin,
+    IsDeletedMixin,
+)
 
 __all__ = [
     "ClassInfo",
@@ -26,4 +38,14 @@ __all__ = [
     "SysUserRole",
     "SysRoleMenu",
     "TeacherClass",
+    "AuditCreateTimeMixin",
+    "CreateTimeMixin",
+    "CreateUpdateDateMicroMixin",
+    "CreateUpdateDateMixin",
+    "CreateUpdateDateTimeMixin",
+    "CreateUpdateTimeMixin",
+    "IdDeleteMixin",
+    "IfDeleteMixin",
+    "IsDeleteMixin",
+    "IsDeletedMixin",
 ]

@@ -1,11 +1,10 @@
-from datetime import datetime
-
 from sqlalchemy import Column, DateTime, Index, Integer, String, Text
 
 from database import Base
+from model.mixins import AuditCreateTimeMixin
 
 
-class OperationLog(Base):
+class OperationLog(AuditCreateTimeMixin, Base):
     """后台写操作审计日志，字段对齐 B 端系统日志页。"""
 
     __tablename__ = "sys_operation_log"
@@ -25,7 +24,6 @@ class OperationLog(Base):
     status = Column(Integer, default=1, nullable=False, comment="1成功 0失败")
     execution_time = Column(Integer, comment="耗时毫秒")
     error_msg = Column(Text, comment="错误信息")
-    create_time = Column(DateTime, default=datetime.now, comment="操作时间")
 
     __table_args__ = (
         Index("idx_log_create_time", "create_time"),

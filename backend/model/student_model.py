@@ -2,9 +2,10 @@ from sqlalchemy import Column, Integer, String, Date
 from sqlalchemy.orm import relationship
 
 from database import Base
+from model.mixins import IsDeleteMixin
 
 
-class Student(Base):
+class Student(IsDeleteMixin, Base):
     __tablename__ = "student_base_info"
     stu_id = Column(
         Integer,
@@ -24,7 +25,6 @@ class Student(Base):
     age = Column(Integer, nullable=False, comment="年龄")
     sex = Column(String(50), comment="性别")
     password_md5 = Column(String(128), nullable=True, comment="C端登录密码(bcrypt或历史MD5)")
-    is_delete = Column(Integer, default=0, nullable=False, comment="逻辑删除字段，1是被删除了，0是未删除")
 
     scores = relationship(
         "Score",

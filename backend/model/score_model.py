@@ -1,13 +1,11 @@
-from datetime import datetime
-
 from sqlalchemy import Column, Float, Integer, String
-from sqlalchemy.dialects.mysql import DATETIME
 from sqlalchemy.orm import relationship
 
 from database import Base
+from model.mixins import CreateUpdateDateMixin, IsDeletedMixin
 
 
-class Score(Base):
+class Score(IsDeletedMixin, CreateUpdateDateMixin, Base):
     __tablename__ = "ai0720score"
     id = Column(
         Integer,
@@ -24,9 +22,6 @@ class Score(Base):
         comment="考核序次：1第1次考核，2第2次考核",
     )
     score = Column(Float, comment="分数")
-    is_deleted = Column(Integer, default=0, nullable=False, comment="逻辑删除字段，1是被删除了，0是未删除")
-    create_date = Column(DATETIME(), default=datetime.now, nullable=False)
-    update_date = Column(DATETIME(), default=datetime.now, nullable=False, onupdate=datetime.now)
 
     student = relationship(
         "Student",
