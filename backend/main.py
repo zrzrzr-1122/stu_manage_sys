@@ -3,10 +3,13 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-# 优先加载仓库根目录 .env，其次 backend/.env
+# 优先加载仓库根目录 .env，其次 backend/.env，最后 .env.example（含可共享配置如高德 Key）
 _root = Path(__file__).resolve().parent.parent
+_backend = Path(__file__).resolve().parent
 load_dotenv(_root / ".env")
-load_dotenv(Path(__file__).resolve().parent / ".env")
+load_dotenv(_backend / ".env")
+load_dotenv(_root / ".env.example")
+load_dotenv(_backend / ".env.example")
 
 import time
 import uvicorn
