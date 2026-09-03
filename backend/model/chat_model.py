@@ -76,6 +76,7 @@ class ChatMessage(Base):
     role = Column(String(20), nullable=False, comment="user|assistant|system")
     content = Column(Text, nullable=False)
     thinking_content = Column(Text, nullable=True, comment="reasoner 思维链")
+    data_queries_json = Column(Text, nullable=True, comment="NL2SQL data_queries JSON")
     prompt_tokens = Column(Integer, nullable=True)
     completion_tokens = Column(Integer, nullable=True)
     total_tokens = Column(Integer, nullable=True)

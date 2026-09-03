@@ -54,6 +54,23 @@ export interface ChatMessage {
   prompt_tokens?: number | null;
   completion_tokens?: number | null;
   total_tokens?: number | null;
+  data_queries?: DataQuerySummary[] | null;
+}
+
+export interface DataQuerySummary {
+  ok?: boolean | null;
+  question?: string | null;
+  sql?: string | null;
+  row_count?: number | null;
+  truncated?: boolean | null;
+  metrics?: Record<string, unknown> | null;
+  scope_note?: string | null;
+  error?: string | null;
+  generated?: boolean | null;
+  retried?: boolean | null;
+  tables?: string[] | null;
+  columns?: string[] | null;
+  rows?: Record<string, unknown>[] | null;
 }
 
 export interface ApiKeyStatus {
@@ -97,6 +114,7 @@ export type ChatStreamHandlers = {
   onContent?: (text: string) => void;
   onThinking?: (text: string) => void;
   onUsage?: (usage: ChatUsage) => void;
+  onDataQueries?: (queries: DataQuerySummary[]) => void;
 };
 
 async function parseSse(resp: Response, handlers: ChatStreamHandlers) {
@@ -119,6 +137,9 @@ async function parseSse(resp: Response, handlers: ChatStreamHandlers) {
       if (json.type === "error" || json.error) throw new Error(json.error || "生成失败");
       if (json.type === "thinking" && json.content) handlers.onThinking?.(json.content);
       else if (json.type === "content" && json.content) handlers.onContent?.(json.content);
+      else if (json.type === "data_queries" && Array.isArray(json.data_queries)) {
+        handlers.onDataQueries?.(json.data_queries);
+      }
       else if (json.type === "usage") handlers.onUsage?.(json);
       else if (json.content && !json.type) handlers.onContent?.(json.content);
     }
@@ -159,7 +180,12 @@ export const ChatAPI = {
     });
     const json = await resp.json();
     if (json.code && json.code !== "00000") throw new Error(json.msg || "生成失败");
-    return json.data as { content: string; thinking?: string; usage?: ChatUsage };
+    return json.data as {
+      content: string;
+      thinking?: string;
+      usage?: ChatUsage;
+      data_queries?: DataQuerySummary[];
+    };
   },
   async streamChat(body: ChatCompletionParams, handlers: ChatStreamHandlers, signal?: AbortSignal) {
     const token = localStorage.getItem("portal_token");

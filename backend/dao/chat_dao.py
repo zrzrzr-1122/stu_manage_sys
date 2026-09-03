@@ -229,15 +229,20 @@ def add_message(
     content: str,
     *,
     thinking_content: str | None = None,
+    data_queries: list | dict | None = None,
     prompt_tokens: int | None = None,
     completion_tokens: int | None = None,
     total_tokens: int | None = None,
 ) -> ChatMessage:
+    dq_json = None
+    if data_queries is not None:
+        dq_json = json.dumps(data_queries, ensure_ascii=False, default=str)
     msg = ChatMessage(
         conversation_id=conversation_id,
         role=role,
         content=content,
         thinking_content=thinking_content,
+        data_queries_json=dq_json,
         prompt_tokens=prompt_tokens,
         completion_tokens=completion_tokens,
         total_tokens=total_tokens,

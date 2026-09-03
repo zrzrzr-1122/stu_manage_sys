@@ -31,6 +31,23 @@ export interface ChatMessage {
   completion_tokens?: number | null;
   total_tokens?: number | null;
   created_at?: string;
+  data_queries?: DataQuerySummary[] | null;
+}
+
+export interface DataQuerySummary {
+  ok?: boolean | null;
+  question?: string | null;
+  sql?: string | null;
+  row_count?: number | null;
+  truncated?: boolean | null;
+  metrics?: Record<string, unknown> | null;
+  scope_note?: string | null;
+  error?: string | null;
+  generated?: boolean | null;
+  retried?: boolean | null;
+  tables?: string[] | null;
+  columns?: string[] | null;
+  rows?: Record<string, unknown>[] | null;
 }
 
 export interface ApiKeyStatus {
@@ -77,6 +94,7 @@ export type ChatStreamHandlers = {
   onContent?: (text: string) => void;
   onThinking?: (text: string) => void;
   onUsage?: (usage: ChatUsage) => void;
+  onDataQueries?: (queries: DataQuerySummary[]) => void;
   onDone?: (messageId?: number) => void;
 };
 
@@ -110,6 +128,9 @@ async function parseSse(
         }
         if (json.type === "thinking" && json.content) handlers.onThinking?.(json.content);
         else if (json.type === "content" && json.content) handlers.onContent?.(json.content);
+        else if (json.type === "data_queries" && Array.isArray(json.data_queries)) {
+          handlers.onDataQueries?.(json.data_queries);
+        }
         else if (json.type === "usage") handlers.onUsage?.(json);
         else if (json.type === "done") handlers.onDone?.(json.message_id);
         else if (json.content && !json.type) handlers.onContent?.(json.content);
@@ -204,6 +225,7 @@ const ChatAPI = {
       thinking?: string;
       usage?: ChatUsage;
       message_id?: number;
+      data_queries?: DataQuerySummary[];
     };
   },
   async streamChat(body: ChatCompletionParams, handlers: ChatStreamHandlers, signal?: AbortSignal) {

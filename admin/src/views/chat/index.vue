@@ -76,6 +76,41 @@
                 v-html="renderMarkdown(msg.content)"
               />
               <div v-else class="content">{{ msg.content }}</div>
+              <div
+                v-if="msg.role === 'assistant' && msg.data_queries?.length"
+                class="data-query-panel"
+              >
+                <details v-for="(dq, qi) in msg.data_queries" :key="qi" class="dq-item" open>
+                  <summary>
+                    数据查询
+                    <span v-if="dq.ok === false" class="dq-bad">失败</span>
+                    <span v-else-if="dq.row_count != null">· {{ dq.row_count }} 行</span>
+                  </summary>
+                  <p v-if="dq.question" class="dq-q">问：{{ dq.question }}</p>
+                  <p v-if="dq.error" class="dq-err">{{ dq.error }}</p>
+                  <div v-if="dq.rows?.length" class="dq-table-wrap">
+                    <table class="dq-table">
+                      <thead>
+                        <tr>
+                          <th v-for="col in dq.columns || Object.keys(dq.rows[0] || {})" :key="col">{{ col }}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr v-for="(row, ri) in dq.rows" :key="ri">
+                          <td v-for="col in dq.columns || Object.keys(dq.rows[0] || {})" :key="col">
+                            {{ row[col] ?? "" }}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <pre v-if="dq.sql" class="dq-sql">{{ dq.sql }}</pre>
+                  <p v-if="dq.scope_note" class="dq-note">{{ dq.scope_note }}</p>
+                  <p v-if="dq.metrics" class="dq-note">
+                    口径：不及格 {{ (dq.metrics as any).fail }}；及格 {{ (dq.metrics as any).pass }}；优秀 {{ (dq.metrics as any).excellent }}
+                  </p>
+                </details>
+              </div>
               <div v-if="msg.role === 'assistant' && msg.total_tokens" class="token-line">
                 Tokens: {{ msg.prompt_tokens || 0 }} + {{ msg.completion_tokens || 0 }} = {{ msg.total_tokens }}
               </div>
@@ -236,6 +271,7 @@ import ChatAPI, {
   type ChatConversation,
   type ChatMessage,
   type ChatModel,
+  type DataQuerySummary,
   type LlmLogItem,
 } from "@/api/chat";
 
@@ -514,6 +550,9 @@ async function sendMessage() {
             patchAssistant({ content: (cur?.content || "") + chunk });
             scrollToBottom();
           },
+          onDataQueries: (queries: DataQuerySummary[]) => {
+            patchAssistant({ data_queries: queries });
+          },
           onUsage: (usage) => {
             patchAssistant({
               prompt_tokens: usage.prompt_tokens,
@@ -531,6 +570,7 @@ async function sendMessage() {
         prompt_tokens: data.usage?.prompt_tokens,
         completion_tokens: data.usage?.completion_tokens,
         total_tokens: data.usage?.total_tokens,
+        data_queries: data.data_queries || null,
       });
     }
     await loadConversations();
@@ -701,6 +741,74 @@ onMounted(async () => {
   margin-top: 6px;
   font-size: 12px;
   color: var(--el-text-color-secondary);
+}
+.data-query-panel {
+  margin-top: 8px;
+}
+.dq-item {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  background: var(--el-fill-color-light);
+  border-radius: 6px;
+  padding: 6px 8px;
+  margin-top: 4px;
+}
+.dq-item summary {
+  cursor: pointer;
+  user-select: none;
+}
+.dq-bad {
+  color: var(--el-color-danger);
+  margin-left: 4px;
+}
+.dq-q,
+.dq-note,
+.dq-err {
+  margin: 6px 0 0;
+  line-height: 1.4;
+}
+.dq-err {
+  color: var(--el-color-danger);
+}
+.dq-table-wrap {
+  margin-top: 6px;
+  max-height: 220px;
+  overflow: auto;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 4px;
+  background: var(--el-bg-color);
+}
+.dq-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+  color: var(--el-text-color-primary);
+}
+.dq-table th,
+.dq-table td {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--el-border-color-extra-light);
+  text-align: left;
+  white-space: nowrap;
+}
+.dq-table th {
+  position: sticky;
+  top: 0;
+  background: var(--el-fill-color-light);
+  font-weight: 600;
+}
+.dq-sql {
+  margin: 6px 0 0;
+  padding: 8px;
+  max-height: 160px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  background: var(--el-bg-color);
+  border-radius: 4px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  color: var(--el-text-color-primary);
 }
 .chat-input {
   border-top: 1px solid var(--el-border-color-lighter);

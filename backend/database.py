@@ -105,6 +105,8 @@ def ensure_extra_columns():
          "ALTER TABLE `chat_messages` ADD COLUMN `completion_tokens` INT NULL"),
         ("chat_messages", "total_tokens",
          "ALTER TABLE `chat_messages` ADD COLUMN `total_tokens` INT NULL"),
+        ("chat_messages", "data_queries_json",
+         "ALTER TABLE `chat_messages` ADD COLUMN `data_queries_json` TEXT NULL COMMENT 'NL2SQL data_queries JSON'"),
     ]
     widen = [
         ("sys_user", "password_md5",

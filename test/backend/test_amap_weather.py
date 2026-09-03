@@ -7,13 +7,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from services.amap_weather import (
+from services.tools.weather import (
     AmapWeatherError,
     execute_weather_tool,
     get_weather,
     resolve_city_adcode,
 )
-from services.chat_tools import dispatch_tool, run_tool_loop
+from services.tools.registry import dispatch_tool, run_tool_loop
 
 
 def _run(coro):
@@ -36,8 +36,8 @@ def test_resolve_city_geocode_mock():
     mock_client.__aenter__.return_value = mock_client
     mock_client.get = AsyncMock(return_value=mock_resp)
 
-    with patch("services.amap_weather.httpx.AsyncClient", return_value=mock_client):
-        with patch("services.amap_weather.amap_web_key", return_value="test-key"):
+    with patch("services.tools.weather.httpx.AsyncClient", return_value=mock_client):
+        with patch("services.tools.weather.amap_web_key", return_value="test-key"):
             adcode, name = _run(resolve_city_adcode("杭州"))
     assert adcode == "330100"
     assert "杭州" in name
@@ -76,8 +76,8 @@ def test_get_weather_live_mock():
     mock_client.__aenter__.return_value = mock_client
     mock_client.get = AsyncMock(side_effect=fake_get)
 
-    with patch("services.amap_weather.httpx.AsyncClient", return_value=mock_client):
-        with patch("services.amap_weather.amap_web_key", return_value="test-key"):
+    with patch("services.tools.weather.httpx.AsyncClient", return_value=mock_client):
+        with patch("services.tools.weather.amap_web_key", return_value="test-key"):
             data = _run(get_weather("北京", extensions="base"))
 
     assert data["adcode"] == "110000"
@@ -86,13 +86,13 @@ def test_get_weather_live_mock():
 
 
 def test_get_weather_missing_key():
-    with patch("services.amap_weather.amap_web_key", return_value=None):
+    with patch("services.tools.weather.amap_web_key", return_value=None):
         with pytest.raises(AmapWeatherError, match="AMAP_WEB_KEY"):
             _run(get_weather("北京"))
 
 
 def test_execute_weather_tool_error_json():
-    with patch("services.amap_weather.amap_web_key", return_value=None):
+    with patch("services.tools.weather.amap_web_key", return_value=None):
         raw = _run(execute_weather_tool({"city": "北京"}))
     body = json.loads(raw)
     assert "error" in body
@@ -148,11 +148,11 @@ def test_run_tool_loop_calls_weather():
     }
 
     with patch(
-        "services.chat_tools.chat_completion",
+        "services.tools.registry.chat_completion",
         new=AsyncMock(side_effect=[tool_round, final_round]),
     ):
         with patch(
-            "services.chat_tools.dispatch_tool",
+            "services.tools.registry.dispatch_tool",
             new=AsyncMock(
                 return_value=json.dumps({"live": {"weather": "晴"}}, ensure_ascii=False)
             ),

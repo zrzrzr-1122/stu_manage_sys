@@ -17,7 +17,9 @@ from database import Session as DbSession, get_db
 from exceptions import biz_error, not_found
 from jwt_auth.access import AccessContext, require_perms
 from services.chat_models import AVAILABLE_MODELS, is_valid_model, normalize_model
-from services.chat_tools import run_tool_loop, tools_enabled_for_model
+from services.tools import run_tool_loop, tools_enabled_for_model
+from services.tools.nl2sql.context import clear_nl2sql_context, set_nl2sql_context
+from services.tools.nl2sql.tool import summarize_query_data_from_messages
 from services.deepseek import (
     ApiKeyError,
     DeepSeekError,
@@ -142,11 +144,19 @@ def _conv_out(row) -> dict:
 
 
 def _msg_out(row) -> dict:
+    data_queries = None
+    raw = getattr(row, "data_queries_json", None)
+    if raw:
+        try:
+            data_queries = json.loads(raw)
+        except (json.JSONDecodeError, TypeError):
+            data_queries = None
     return {
         "id": row.id,
         "role": row.role,
         "content": row.content,
         "thinking_content": row.thinking_content,
+        "data_queries": data_queries,
         "prompt_tokens": row.prompt_tokens,
         "completion_tokens": row.completion_tokens,
         "total_tokens": row.total_tokens,
@@ -301,6 +311,7 @@ def _persist_assistant_and_log(
     latency_ms: int,
     status: str = "ok",
     error_message: str | None = None,
+    data_queries: list | None = None,
 ) -> int | None:
     db2 = DbSession()
     message_id = None
@@ -312,6 +323,7 @@ def _persist_assistant_and_log(
                 "assistant",
                 content,
                 thinking_content=(thinking if thinking_enabled and thinking else None),
+                data_queries=data_queries or None,
                 prompt_tokens=usage.get("prompt_tokens"),
                 completion_tokens=usage.get("completion_tokens"),
                 total_tokens=usage.get("total_tokens"),
@@ -391,6 +403,22 @@ async def _run_chat(db: Session, owner: ChatOwner, body: ChatRequest):
     )
     outbound = _inject_system(messages, merged_system)
 
+    # NL2SQL 权限上下文：仅管理端开放；老师带班级范围；生成 SQL 复用用户 Key
+    if owner_type == "admin":
+        from jwt_auth.access import build_access
+        from jwt_auth.dao import get_user_by_id
+
+        user = get_user_by_id(db, owner_id)
+        if user:
+            access = build_access(db, user)
+            set_nl2sql_context(
+                enabled=True, class_ids=access.class_ids, api_key=api_key
+            )
+        else:
+            set_nl2sql_context(enabled=False, class_ids=[], api_key=None)
+    else:
+        set_nl2sql_context(enabled=False, class_ids=[], api_key=None)
+
     last_user = next((m for m in reversed(messages) if m["role"] == "user"), None)
     if conversation_id and last_user:
         chat_dao.add_message(db, conversation_id, "user", last_user["content"])
@@ -401,6 +429,36 @@ async def _run_chat(db: Session, owner: ChatOwner, body: ChatRequest):
     except Exception:
         pass
 
+    try:
+        return await _run_chat_after_db(
+            outbound=outbound,
+            api_key=api_key,
+            model=model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            use_stream=use_stream,
+            thinking_enabled=thinking_enabled,
+            owner_type=owner_type,
+            owner_id=owner_id,
+            persist_conversation_id=persist_conversation_id,
+        )
+    finally:
+        clear_nl2sql_context()
+
+
+async def _run_chat_after_db(
+    *,
+    outbound: list[dict],
+    api_key: str | None,
+    model: str,
+    temperature: float | None,
+    max_tokens: int | None,
+    use_stream: bool,
+    thinking_enabled: bool,
+    owner_type: str,
+    owner_id: int,
+    persist_conversation_id: int | None,
+):
     if not api_key:
         err = "请先在设置中配置自己的 DeepSeek API Key"
         if use_stream:
@@ -449,6 +507,7 @@ async def _run_chat(db: Session, owner: ChatOwner, body: ChatRequest):
             usage = result.get("usage") or {}
             thinking = result.get("thinking") or ""
             content = result.get("content") or ""
+            data_queries = summarize_query_data_from_messages(result.get("messages") or [])
             message_id = _persist_assistant_and_log(
                 owner_type=owner_type,
                 owner_id=owner_id,
@@ -463,6 +522,7 @@ async def _run_chat(db: Session, owner: ChatOwner, body: ChatRequest):
                 thinking_enabled=thinking_enabled,
                 usage=usage,
                 latency_ms=latency_ms,
+                data_queries=data_queries,
             )
             return ok(
                 {
@@ -471,6 +531,7 @@ async def _run_chat(db: Session, owner: ChatOwner, body: ChatRequest):
                     "usage": usage,
                     "message_id": message_id,
                     "model": model,
+                    "data_queries": data_queries,
                 }
             )
         except DeepSeekError as e:
@@ -501,6 +562,7 @@ async def _run_chat(db: Session, owner: ChatOwner, body: ChatRequest):
         assistant_parts: list[str] = []
         thinking_parts: list[str] = []
         usage: dict[str, Any] = {}
+        data_queries: list[dict[str, Any]] = []
         started = time.perf_counter()
         try:
             # deepseek-chat：先非流式跑 tool loop，再把最终正文按 chunk 推给前端
@@ -515,9 +577,12 @@ async def _run_chat(db: Session, owner: ChatOwner, body: ChatRequest):
                 content = result.get("content") or ""
                 thinking = result.get("thinking") or ""
                 usage = result.get("usage") or {}
+                data_queries = summarize_query_data_from_messages(result.get("messages") or [])
                 if thinking_enabled and thinking:
                     thinking_parts.append(thinking)
                     yield f"data: {json.dumps({'type': 'thinking', 'content': thinking}, ensure_ascii=False)}\n\n"
+                if data_queries:
+                    yield f"data: {json.dumps({'type': 'data_queries', 'data_queries': data_queries}, ensure_ascii=False)}\n\n"
                 # 分块推送，保持流式体验
                 chunk_size = 24
                 for i in range(0, len(content), chunk_size):
@@ -571,6 +636,7 @@ async def _run_chat(db: Session, owner: ChatOwner, body: ChatRequest):
                     thinking_enabled=thinking_enabled,
                     usage=usage,
                     latency_ms=latency_ms,
+                    data_queries=data_queries,
                 )
             except Exception as e:
                 yield f"data: {json.dumps({'type': 'error', 'error': f'落库失败: {e}'}, ensure_ascii=False)}\n\n"
