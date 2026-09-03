@@ -10,7 +10,7 @@ from model.student_model import Student
 from model.teacher_model import Teacher
 from model.user_model import SysUser
 from model.rbac_model import SysRole, SysMenu, SysUserRole, SysRoleMenu, TeacherClass
-from model.chat_model import ChatApiKey, ChatConversation, ChatLlmLog, ChatMessage, ChatUserMemory
+from model.chat_model import ChatApiKey, ChatConversation, ChatLlmLog, ChatMessage, ChatNl2SqlLog, ChatUserMemory
 from model.mixins import (
     AuditCreateTimeMixin,
     CreateTimeMixin,
@@ -43,6 +43,7 @@ __all__ = [
     "ChatConversation",
     "ChatLlmLog",
     "ChatMessage",
+    "ChatNl2SqlLog",
     "ChatUserMemory",
     "AuditCreateTimeMixin",
     "CreateTimeMixin",

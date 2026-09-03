@@ -8,6 +8,7 @@ import sqlglot
 from sqlglot import exp
 
 from services.tools.nl2sql.schema import (
+    ALLOWED_COLUMNS,
     ALLOWED_TABLES,
     DEFAULT_ROW_LIMIT,
     MAX_ROW_LIMIT,
@@ -170,12 +171,58 @@ def _inject_soft_delete(node: exp.Expression) -> exp.Expression:
     return node
 
 
+def _reject_star_select(node: exp.Expression) -> None:
+    for star in node.find_all(exp.Star):
+        # COUNT(*) / SUM 等聚合里的 * 允许；裸 SELECT * 禁止
+        parent = star.parent
+        if isinstance(parent, exp.Count):
+            continue
+        # SELECT * / t.*
+        raise Nl2SqlValidationError("禁止 SELECT *，请显式列出字段")
+
+
+def _collect_select_aliases(node: exp.Expression) -> set[str]:
+    aliases: set[str] = set()
+    for select in node.find_all(exp.Select):
+        for item in select.expressions or []:
+            alias = getattr(item, "alias", None) or getattr(item, "alias_or_name", None)
+            if isinstance(item, exp.Alias):
+                alias = item.alias
+            if alias:
+                aliases.add(str(alias).strip().lower())
+    return aliases
+
+
+def _reject_disallowed_columns(node: exp.Expression, tables: set[str]) -> None:
+    allowed_union: set[str] = set()
+    for t in tables:
+        allowed_union |= set(ALLOWED_COLUMNS.get(t, frozenset()))
+    aliases = _collect_select_aliases(node)
+    for col in node.find_all(exp.Column):
+        name = (col.name or "").strip().lower()
+        if not name or name == "*":
+            continue
+        if name in SENSITIVE_COLUMNS:
+            raise Nl2SqlValidationError(f"禁止访问敏感字段: {name}")
+        if name in aliases:
+            continue
+        table = (col.table or "").strip().lower()
+        if table:
+            phys = table if table in ALLOWED_COLUMNS else None
+            if phys and name not in ALLOWED_COLUMNS[phys]:
+                if name not in allowed_union:
+                    raise Nl2SqlValidationError(f"非白名单字段: {name}")
+            elif name not in allowed_union:
+                raise Nl2SqlValidationError(f"非白名单字段: {name}")
+        elif name not in allowed_union:
+            raise Nl2SqlValidationError(f"非白名单字段: {name}")
+
+
 def _reject_sensitive_columns(node: exp.Expression) -> None:
     for col in node.find_all(exp.Column):
         name = (col.name or "").strip().lower()
         if name in SENSITIVE_COLUMNS:
             raise Nl2SqlValidationError(f"禁止访问敏感字段: {name}")
-    # SELECT * 可能带出敏感列：成绩域允许 *，执行层再抹除；此处仅拦显式引用
 
 
 def _reject_cartesian_joins(node: exp.Expression) -> None:
@@ -252,7 +299,9 @@ def validate_sql(
     if unknown:
         raise Nl2SqlValidationError(f"非白名单表: {', '.join(sorted(unknown))}")
 
+    _reject_star_select(root)
     _reject_sensitive_columns(root)
+    _reject_disallowed_columns(root, tables)
     _reject_cartesian_joins(root)
 
     root = _inject_soft_delete(root)

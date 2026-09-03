@@ -115,6 +115,7 @@ export type ChatStreamHandlers = {
   onThinking?: (text: string) => void;
   onUsage?: (usage: ChatUsage) => void;
   onDataQueries?: (queries: DataQuerySummary[]) => void;
+  onStatus?: (text: string) => void;
 };
 
 async function parseSse(resp: Response, handlers: ChatStreamHandlers) {
@@ -137,6 +138,7 @@ async function parseSse(resp: Response, handlers: ChatStreamHandlers) {
       if (json.type === "error" || json.error) throw new Error(json.error || "生成失败");
       if (json.type === "thinking" && json.content) handlers.onThinking?.(json.content);
       else if (json.type === "content" && json.content) handlers.onContent?.(json.content);
+      else if (json.type === "status") handlers.onStatus?.(json.content || "");
       else if (json.type === "data_queries" && Array.isArray(json.data_queries)) {
         handlers.onDataQueries?.(json.data_queries);
       }

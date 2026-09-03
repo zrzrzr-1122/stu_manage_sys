@@ -412,12 +412,31 @@ async def _run_chat(db: Session, owner: ChatOwner, body: ChatRequest):
         if user:
             access = build_access(db, user)
             set_nl2sql_context(
-                enabled=True, class_ids=access.class_ids, api_key=api_key
+                enabled=True,
+                class_ids=access.class_ids,
+                api_key=api_key,
+                owner_type=owner_type,
+                owner_id=owner_id,
+                conversation_id=conversation_id,
             )
         else:
-            set_nl2sql_context(enabled=False, class_ids=[], api_key=None)
+            set_nl2sql_context(
+                enabled=False,
+                class_ids=[],
+                api_key=None,
+                owner_type=owner_type,
+                owner_id=owner_id,
+                conversation_id=conversation_id,
+            )
     else:
-        set_nl2sql_context(enabled=False, class_ids=[], api_key=None)
+        set_nl2sql_context(
+            enabled=False,
+            class_ids=[],
+            api_key=None,
+            owner_type=owner_type,
+            owner_id=owner_id,
+            conversation_id=conversation_id,
+        )
 
     last_user = next((m for m in reversed(messages) if m["role"] == "user"), None)
     if conversation_id and last_user:
@@ -567,6 +586,7 @@ async def _run_chat_after_db(
         try:
             # deepseek-chat：先非流式跑 tool loop，再把最终正文按 chunk 推给前端
             if tools_enabled_for_model(model):
+                yield f"data: {json.dumps({'type': 'status', 'content': '正在查询数据…'}, ensure_ascii=False)}\n\n"
                 result = await run_tool_loop(
                     outbound,
                     api_key=api_key,
@@ -583,6 +603,7 @@ async def _run_chat_after_db(
                     yield f"data: {json.dumps({'type': 'thinking', 'content': thinking}, ensure_ascii=False)}\n\n"
                 if data_queries:
                     yield f"data: {json.dumps({'type': 'data_queries', 'data_queries': data_queries}, ensure_ascii=False)}\n\n"
+                yield f"data: {json.dumps({'type': 'status', 'content': ''}, ensure_ascii=False)}\n\n"
                 # 分块推送，保持流式体验
                 chunk_size = 24
                 for i in range(0, len(content), chunk_size):

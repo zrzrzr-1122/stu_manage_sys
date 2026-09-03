@@ -5,7 +5,7 @@ from datetime import datetime
 
 from sqlalchemy.orm import Session
 
-from model.chat_model import ChatApiKey, ChatConversation, ChatLlmLog, ChatMessage, ChatUserMemory
+from model.chat_model import ChatApiKey, ChatConversation, ChatLlmLog, ChatMessage, ChatNl2SqlLog, ChatUserMemory
 from services.deepseek import decrypt_api_key, encrypt_api_key, mask_api_key
 
 DEFAULT_MAX_TOKENS = 2048
@@ -298,6 +298,44 @@ def add_llm_log(
         prompt_tokens=prompt_tokens,
         completion_tokens=completion_tokens,
         total_tokens=total_tokens,
+        latency_ms=latency_ms,
+        error_message=(error_message or "")[:2000] or None,
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+def add_nl2sql_log(
+    db: Session,
+    *,
+    owner_type: str,
+    owner_id: int,
+    conversation_id: int | None,
+    question: str | None,
+    sql_text: str | None,
+    class_ids: list[int] | None,
+    ok: bool,
+    refused: bool = False,
+    generated: bool = False,
+    retried: bool = False,
+    row_count: int | None = None,
+    latency_ms: int | None = None,
+    error_message: str | None = None,
+) -> ChatNl2SqlLog:
+    row = ChatNl2SqlLog(
+        owner_type=owner_type,
+        owner_id=owner_id,
+        conversation_id=conversation_id,
+        question=(question or "")[:2000] or None,
+        sql_text=(sql_text or "")[:8000] or None,
+        class_ids_json=json.dumps(class_ids, ensure_ascii=False) if class_ids is not None else None,
+        ok=1 if ok else 0,
+        refused=1 if refused else 0,
+        generated=1 if generated else 0,
+        retried=1 if retried else 0,
+        row_count=row_count,
         latency_ms=latency_ms,
         error_message=(error_message or "")[:2000] or None,
     )

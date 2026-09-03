@@ -36,6 +36,39 @@ MAX_ROW_LIMIT = 500
 # 禁止出现在 SELECT/WHERE 等位置的敏感列（即使表在白名单）
 SENSITIVE_COLUMNS: frozenset[str] = frozenset({"password_md5", "password", "passwd"})
 
+# 表白名单列（禁止 SELECT *；显式列必须在此集合内）
+ALLOWED_COLUMNS: dict[str, frozenset[str]] = {
+    "student_base_info": frozenset(
+        {
+            "stu_id",
+            "stu_name",
+            "class_id",
+            "sex",
+            "age",
+            "major",
+            "education",
+            "is_delete",
+            "address",
+            "graduateschool",
+            "starttime",
+            "endtime",
+            "counselor",
+        }
+    ),
+    "ai0720score": frozenset(
+        {
+            "id",
+            "stu_id",
+            "stu_name",
+            "exam_order",
+            "score",
+            "is_deleted",
+            "create_date",
+            "update_date",
+        }
+    ),
+}
+
 METRICS: dict[str, Any] = {
     "fail": "score < 60",
     "pass": "score >= 60",
@@ -56,6 +89,7 @@ SCHEMA_FOR_PROMPT = """
 口径：不及格 score<60；及格 score>=60；优秀 score>=90。
 按班级统计时请 JOIN student_base_info 并使用 class_id（数字 id，不是班级编号字符串）。
 用户说「一班/二班」时，以系统附加的班级对照为准。
+禁止 SELECT *；请显式列出字段。
 禁止无 ON 条件的多表关联。
 禁止访问其它表；禁止 INSERT/UPDATE/DELETE/DDL；就业/薪资等非成绩域请拒答。
 """.strip()

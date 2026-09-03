@@ -65,7 +65,7 @@
                   v-if="msg.role === 'assistant' && isGenerating && idx === messages.length - 1 && !msg.content"
                   class="content streaming-hint"
                 >
-                  正在生成…
+                  {{ statusHint || "正在生成…" }}
                 </div>
                 <div
                   v-else-if="msg.role === 'assistant' && markdownEnabled"
@@ -102,6 +102,9 @@
                       </table>
                     </div>
                     <pre v-if="dq.sql" class="dq-sql">{{ dq.sql }}</pre>
+                    <div v-if="dq.sql" class="dq-actions">
+                      <v-btn variant="text" size="small" color="primary" @click="copyText(dq.sql!)">复制 SQL</v-btn>
+                    </div>
                     <p v-if="dq.scope_note" class="dq-note">{{ dq.scope_note }}</p>
                     <p v-if="dq.metrics" class="dq-note">
                       口径：不及格 {{ (dq.metrics as any).fail }}；及格 {{ (dq.metrics as any).pass }}；优秀
@@ -309,6 +312,7 @@ const streamEnabled = ref(true);
 const markdownEnabled = ref(true);
 const inputText = ref("");
 const isGenerating = ref(false);
+const statusHint = ref("");
 const settingsOpen = ref(false);
 const paramsOpen = ref(false);
 const memoryOpen = ref(false);
@@ -486,6 +490,15 @@ function onKeydown(e: KeyboardEvent) {
 function stopGenerate() {
   abortController?.abort();
   isGenerating.value = false;
+  statusHint.value = "";
+}
+
+async function copyText(text: string) {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    /* ignore */
+  }
 }
 
 async function scrollToBottom() {
@@ -512,6 +525,7 @@ async function sendMessage() {
     messages.value[assistantIdx] = { ...cur, ...partial };
   };
   isGenerating.value = true;
+  statusHint.value = "";
   abortController = new AbortController();
   await scrollToBottom();
 
@@ -536,6 +550,9 @@ async function sendMessage() {
             patchAssistant({ content: (cur?.content || "") + c });
             scrollToBottom();
           },
+          onStatus: (text) => {
+            statusHint.value = text;
+          },
           onDataQueries: (queries: DataQuerySummary[]) => {
             patchAssistant({ data_queries: queries });
           },
@@ -550,6 +567,7 @@ async function sendMessage() {
         abortController.signal
       );
     } else {
+      statusHint.value = "正在查询数据…";
       const data = await ChatAPI.completeChat(payload, abortController.signal);
       patchAssistant({
         content: data.content || "",
@@ -564,6 +582,7 @@ async function sendMessage() {
     if (e?.name !== "AbortError" && !messages.value[assistantIdx]?.content) messages.value.pop();
   } finally {
     isGenerating.value = false;
+    statusHint.value = "";
     abortController = null;
   }
 }
@@ -709,6 +728,9 @@ onMounted(async () => {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 11px;
   color: #222;
+}
+.dq-actions {
+  margin-top: 4px;
 }
 .actions {
   display: flex;

@@ -130,3 +130,28 @@ class ChatLlmLog(Base):
     latency_ms = Column(Integer, nullable=True)
     error_message = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.now, nullable=False)
+
+
+class ChatNl2SqlLog(Base):
+    """NL2SQL 查询审计。"""
+
+    __tablename__ = "chat_nl2sql_logs"
+    __table_args__ = (
+        Index("idx_nl2sql_owner_created", "owner_type", "owner_id", "created_at"),
+    )
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    owner_type = Column(String(20), nullable=False)
+    owner_id = Column(Integer, nullable=False)
+    conversation_id = Column(BigInteger, nullable=True)
+    question = Column(Text, nullable=True)
+    sql_text = Column(Text, nullable=True)
+    class_ids_json = Column(Text, nullable=True)
+    ok = Column(Integer, nullable=False, default=0)
+    refused = Column(Integer, nullable=False, default=0)
+    generated = Column(Integer, nullable=False, default=0)
+    retried = Column(Integer, nullable=False, default=0)
+    row_count = Column(Integer, nullable=True)
+    latency_ms = Column(Integer, nullable=True)
+    error_message = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.now, nullable=False)

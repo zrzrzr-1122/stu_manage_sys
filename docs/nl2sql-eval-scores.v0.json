@@ -63,7 +63,26 @@
       "tags": ["filter", "having", "multi_exam"],
       "role": "director",
       "class_scope": null,
-      "expected_sql_hint": "MIN(score) >= 80 GROUP BY stu_id"
+      "expected_sql_hint": "MIN(score) >= 80 GROUP BY stu_id",
+      "expected": {
+        "compare": "rows_set",
+        "keys": ["stu_id", "stu_name", "class_id"],
+        "rows": [
+          {"stu_id": 1, "stu_name": "王小明", "class_id": 1},
+          {"stu_id": 6, "stu_name": "赵敏", "class_id": 1},
+          {"stu_id": 18, "stu_name": "赵敏", "class_id": 1},
+          {"stu_id": 24, "stu_name": "冯雅", "class_id": 1},
+          {"stu_id": 27, "stu_name": "杨磊", "class_id": 1},
+          {"stu_id": 2, "stu_name": "李小红", "class_id": 2},
+          {"stu_id": 5, "stu_name": "陈强", "class_id": 2},
+          {"stu_id": 20, "stu_name": "周洁", "class_id": 2},
+          {"stu_id": 26, "stu_name": "韩梅", "class_id": 2},
+          {"stu_id": 29, "stu_name": "秦刚", "class_id": 2},
+          {"stu_id": 16, "stu_name": "刘芳", "class_id": 3},
+          {"stu_id": 19, "stu_name": "孙洋", "class_id": 3},
+          {"stu_id": 22, "stu_name": "郑秀", "class_id": 3}
+        ]
+      }
     },
     {
       "id": "S05",
@@ -71,7 +90,17 @@
       "tags": ["fail", "count"],
       "role": "director",
       "class_scope": null,
-      "expected_sql_hint": "fail count >= 2 per stu_id"
+      "expected_sql_hint": "fail count >= 2 per stu_id",
+      "expected": {
+        "compare": "rows_set",
+        "keys": ["stu_name", "class_id", "fail_cnt"],
+        "rows": [
+          {"stu_name": "吴刚", "class_id": 1, "fail_cnt": 2},
+          {"stu_name": "孙洋", "class_id": 3, "fail_cnt": 2},
+          {"stu_name": "张伟", "class_id": 1, "fail_cnt": 2},
+          {"stu_name": "钱进", "class_id": 2, "fail_cnt": 2}
+        ]
+      }
     },
     {
       "id": "S06",
@@ -145,7 +174,16 @@
       "tags": ["rate", "excellent", "group_by"],
       "role": "director",
       "class_scope": null,
-      "metric": "excellent_rate = count(score>=90)/count(*)"
+      "metric": "excellent_rate = count(score>=90)/count(*)",
+      "expected": {
+        "compare": "rows_approx",
+        "tolerance": 0.02,
+        "rows": [
+          {"class_id": 1, "excellent_rate": 0.3333},
+          {"class_id": 2, "excellent_rate": 0.1818},
+          {"class_id": 3, "excellent_rate": 0.3333}
+        ]
+      }
     },
     {
       "id": "S16",
@@ -203,7 +241,16 @@
       "tags": ["rate", "pass", "group_by"],
       "role": "director",
       "class_scope": null,
-      "metric": "pass_rate = count(score>=60)/count(*)"
+      "metric": "pass_rate = count(score>=60)/count(*)",
+      "expected": {
+        "compare": "rows_approx",
+        "tolerance": 0.02,
+        "rows": [
+          {"class_id": 2, "pass_rate": 0.9091},
+          {"class_id": 3, "pass_rate": 0.8889},
+          {"class_id": 1, "pass_rate": 0.75}
+        ]
+      }
     },
     {
       "id": "S24",

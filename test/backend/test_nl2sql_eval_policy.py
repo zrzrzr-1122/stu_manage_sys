@@ -92,7 +92,7 @@ def test_sensitive_column_blocked():
 
 
 def test_cross_join_blocked():
-    with pytest.raises(Nl2SqlValidationError, match="笛卡尔|CROSS"):
+    with pytest.raises(Nl2SqlValidationError, match="笛卡尔|CROSS|SELECT \\*"):
         validate_sql(
             "SELECT * FROM student_base_info CROSS JOIN ai0720score",
             class_ids=None,

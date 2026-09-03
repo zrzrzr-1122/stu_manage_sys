@@ -23,6 +23,21 @@ def check_expected(actual_rows: list[dict], expected: dict) -> tuple[bool, str]:
     tol = float(expected.get("tolerance") or 0.01)
     rows = [_norm_row(r) for r in actual_rows]
 
+    if compare == "rows_set":
+        keys = [str(k).lower() for k in (expected.get("keys") or [])]
+        if not keys:
+            return False, "rows_set missing keys"
+        want = [_norm_row(r) for r in expected.get("rows") or []]
+
+        def _key(r: dict) -> tuple:
+            return tuple(r.get(k) for k in keys)
+
+        got_set = sorted(_key(r) for r in rows)
+        want_set = sorted(_key(r) for r in want)
+        if got_set != want_set:
+            return False, f"set mismatch got={got_set} want={want_set}"
+        return True, "equiv_ok"
+
     if compare == "rows_approx":
         want = [_norm_row(r) for r in expected.get("rows") or []]
         if len(rows) != len(want):

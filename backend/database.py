@@ -300,6 +300,7 @@ def init_database():
         ChatMessage,
         ChatLlmLog,
         ChatUserMemory,
+        ChatNl2SqlLog,
     )
     from model.rbac_model import (  # noqa: F401
         SysRole, SysMenu, SysUserRole, SysRoleMenu, TeacherClass,

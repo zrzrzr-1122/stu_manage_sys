@@ -95,6 +95,7 @@ export type ChatStreamHandlers = {
   onThinking?: (text: string) => void;
   onUsage?: (usage: ChatUsage) => void;
   onDataQueries?: (queries: DataQuerySummary[]) => void;
+  onStatus?: (text: string) => void;
   onDone?: (messageId?: number) => void;
 };
 
@@ -128,6 +129,7 @@ async function parseSse(
         }
         if (json.type === "thinking" && json.content) handlers.onThinking?.(json.content);
         else if (json.type === "content" && json.content) handlers.onContent?.(json.content);
+        else if (json.type === "status") handlers.onStatus?.(json.content || "");
         else if (json.type === "data_queries" && Array.isArray(json.data_queries)) {
           handlers.onDataQueries?.(json.data_queries);
         }
