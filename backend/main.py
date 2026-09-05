@@ -1,4 +1,4 @@
-# uvicorn main:app --host=127.0.0.1 --port=8000 --reload
+# uvicorn main:app --host=0.0.0.0 --port=8000 --reload
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -39,6 +39,13 @@ app.add_middleware(
         "http://localhost:5173",
         "http://127.0.0.1:5173",
     ],
+    # 监听 0.0.0.0 时允许局域网前端直连
+    allow_origin_regex=r"https?://("
+    r"localhost|127\.0\.0\.1|"
+    r"192\.168\.\d{1,3}\.\d{1,3}|"
+    r"10\.\d{1,3}\.\d{1,3}\.\d{1,3}|"
+    r"172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}"
+    r")(:\d+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -108,4 +115,4 @@ app.include_router(auth_router, prefix="/auth", tags=["JWT登录"])
 
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

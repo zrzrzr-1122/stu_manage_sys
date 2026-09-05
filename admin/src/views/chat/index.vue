@@ -16,13 +16,22 @@
           :class="{ active: item.id === activeId }"
           @click="selectConversation(item.id)"
         >
-          <div class="conv-title" :title="item.title">
+          <div class="conv-title" :title="`${item.title}（双击重命名）`" @dblclick.stop="handleRename(item)">
             <span class="conv-id">#{{ item.id }}</span>
             {{ item.title }}
           </div>
           <div class="conv-meta">
             <span>{{ item.model }}</span>
             <div class="conv-actions">
+              <el-button
+                link
+                type="primary"
+                size="small"
+                title="重命名"
+                @click.stop="handleRename(item)"
+              >
+                重命名
+              </el-button>
               <el-button
                 link
                 :type="item.memory_pinned ? 'warning' : 'info'"
@@ -42,11 +51,15 @@
 
     <section class="chat-main">
       <header class="chat-header">
-        <div class="title">{{ activeTitle }}</div>
+        <div class="title title-editable" :title="'点击重命名'" @click="renameActive">
+          {{ activeTitle }}
+          <span class="title-edit-hint">编辑</span>
+        </div>
         <div class="header-actions">
           <el-select v-model="selectedModel" style="width: 200px" @change="persistModel">
             <el-option v-for="m in models" :key="m.id" :label="m.name" :value="m.id" />
           </el-select>
+          <el-tag v-if="!modelSupportsTools" type="warning" size="small">当前模型无法查库</el-tag>
         </div>
       </header>
 
@@ -153,6 +166,17 @@
 
     <el-drawer v-model="paramsVisible" title="会话参数" size="420px">
       <div class="param-form">
+        <div class="param-row">
+          <label class="param-label" for="sms-chat-title">会话名称</label>
+          <el-input
+            id="sms-chat-title"
+            v-model="conversationTitle"
+            maxlength="200"
+            show-word-limit
+            placeholder="会话显示名称"
+            @change="persistTitle"
+          />
+        </div>
         <div class="param-row">
           <label class="param-label" for="sms-chat-model">模型</label>
           <el-select id="sms-chat-model" v-model="selectedModel" class="w-full" @change="persistModel">
@@ -287,6 +311,7 @@ const messages = ref<ChatMessage[]>([]);
 const models = ref<ChatModel[]>([]);
 const activeId = ref<number | null>(null);
 const selectedModel = ref(localStorage.getItem("sms_chat_model") || "deepseek-chat");
+const conversationTitle = ref("");
 const maxTokens = ref(2048);
 const temperature = ref(0.7);
 const systemPrompt = ref("");
@@ -315,6 +340,11 @@ const previewLog = ref<LlmLogItem | null>(null);
 let abortController: AbortController | null = null;
 
 const activeTitle = computed(() => conversations.value.find((c) => c.id === activeId.value)?.title || "新对话");
+const modelSupportsTools = computed(() => {
+  const m = models.value.find((x) => x.id === selectedModel.value);
+  if (m && typeof m.supports_tools === "boolean") return m.supports_tools;
+  return selectedModel.value === "deepseek-chat";
+});
 const previewVisible = computed({
   get: () => !!previewLog.value,
   set: (v: boolean) => {
@@ -328,12 +358,60 @@ function renderMarkdown(text: string) {
 
 function applyConvSettings(conv?: ChatConversation | null) {
   if (!conv) return;
+  conversationTitle.value = conv.title || "";
   if (conv.model) selectedModel.value = conv.model;
   if (conv.max_tokens != null) maxTokens.value = conv.max_tokens;
   if (conv.temperature != null) temperature.value = Number(conv.temperature);
   systemPrompt.value = conv.system_prompt || "";
   streamEnabled.value = conv.stream_enabled !== false;
   markdownEnabled.value = conv.markdown_enabled !== false;
+}
+
+async function persistTitle() {
+  if (!activeId.value) return;
+  const title = conversationTitle.value.trim() || "新对话";
+  conversationTitle.value = title;
+  try {
+    await ChatAPI.updateConversation(activeId.value, { title });
+    await loadConversations();
+  } catch (e: any) {
+    ElMessage.error(e?.message || "重命名失败");
+  }
+}
+
+async function handleRename(item: ChatConversation) {
+  try {
+    const { value } = await ElMessageBox.prompt("请输入会话名称", "重命名会话", {
+      confirmButtonText: "保存",
+      cancelButtonText: "取消",
+      inputValue: item.title || "",
+      inputPattern: /\S+/,
+      inputErrorMessage: "名称不能为空",
+      inputValidator: (val) => {
+        const t = (val || "").trim();
+        if (!t) return "名称不能为空";
+        if (t.length > 200) return "最多 200 字";
+        return true;
+      },
+    });
+    const title = String(value || "").trim() || "新对话";
+    await ChatAPI.updateConversation(item.id, { title });
+    if (activeId.value === item.id) conversationTitle.value = title;
+    await loadConversations();
+    ElMessage.success("已重命名");
+  } catch (e: any) {
+    if (e === "cancel" || e === "close") return;
+    ElMessage.error(e?.message || "重命名失败");
+  }
+}
+
+async function renameActive() {
+  if (!activeId.value) {
+    ElMessage.info("请先新建或选择会话");
+    return;
+  }
+  const item = conversations.value.find((c) => c.id === activeId.value);
+  if (item) await handleRename(item);
 }
 
 async function persistModel(model: string) {
@@ -593,6 +671,8 @@ async function sendMessage() {
       });
     }
     await loadConversations();
+    const cur = conversations.value.find((c) => c.id === activeId.value);
+    if (cur) conversationTitle.value = cur.title || "";
   } catch (e: any) {
     if (e?.name !== "AbortError") {
       ElMessage.error(e?.message || "生成失败");
@@ -697,6 +777,22 @@ onMounted(async () => {
   border-bottom: 1px solid var(--el-border-color-lighter);
   .title {
     font-weight: 600;
+  }
+  .title-editable {
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    max-width: 50vw;
+    &:hover .title-edit-hint {
+      opacity: 1;
+    }
+  }
+  .title-edit-hint {
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--el-color-primary);
+    opacity: 0.55;
   }
 }
 .msg-scroll {

@@ -78,10 +78,10 @@ python data/seed_mock.py
 ```bash
 cd backend
 pip install -r requirements.txt
-python -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload
+python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-接口文档：http://127.0.0.1:8000/docs
+接口文档：http://127.0.0.1:8000/docs（本机）；局域网可用 `http://<本机IP>:8000/docs`
 
 登录页验证码依赖该服务。若只启动了 `admin`/`web`，页面会提示后端未启动，而不会把 Vite 代理错误刷满终端。
 

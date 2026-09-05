@@ -61,13 +61,13 @@ process.on("SIGTERM", () => {
 
 const backend = run(
   "python",
-  ["-m", "uvicorn", "main:app", "--host", "127.0.0.1", "--port", "8000", "--reload"],
+  ["-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"],
   path.join(root, "backend"),
   "backend"
 );
 children.push(backend);
 
-console.log("等待后端 http://127.0.0.1:8000 ...");
+console.log("等待后端 http://127.0.0.1:8000 （监听 0.0.0.0:8000）...");
 try {
   await waitForPort("127.0.0.1", 8000);
 } catch (error) {

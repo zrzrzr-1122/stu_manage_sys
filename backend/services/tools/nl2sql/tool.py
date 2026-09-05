@@ -32,7 +32,8 @@ QUERY_DATA_TOOL: dict[str, Any] = {
     "function": {
         "name": "query_data",
         "description": (
-            "查询学生成绩相关统计与明细（只读）。"
+            "查询本校学生成绩相关统计与明细（只读，连接真实数据库）。"
+            "用户问平均分、及格/不及格、优秀率、排名、名单等时必须调用本工具，禁止编造示例数据。"
             "优先根据数据范围说明直接生成单条 MySQL SELECT，填入 sql（可显著降低延迟）；"
             "若无法确定 SQL，则只填 question，由系统再生成。"
             "仅覆盖成绩域；天气请用 get_weather。"

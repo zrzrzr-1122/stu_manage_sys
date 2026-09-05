@@ -61,7 +61,7 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
               apiUrl: env.VITE_APP_API_URL,
               prefix: env.VITE_APP_BASE_API,
               startHint:
-                "cd backend && python -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload",
+                "cd backend && python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload",
             }),
           ]),
       vue(),

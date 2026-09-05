@@ -5,6 +5,7 @@ export interface ChatModel {
   id: string;
   name: string;
   description: string;
+  supports_tools?: boolean;
 }
 
 export interface ChatConversation {

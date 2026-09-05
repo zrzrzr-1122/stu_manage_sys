@@ -36,6 +36,13 @@ MEMORY_PREFIX = (
     "以下内容为跨会话记忆与用户档案，请在回答时参考；"
     "不要主动向用户复述全文，除非对方明确要求。"
 )
+TOOLS_SYSTEM_HINT = (
+    "你可以使用工具访问本校业务库（只读）。"
+    "凡涉及学生、班级、成绩、考核、平均分、及格/不及格/优秀率、排名等数据问题，"
+    "必须调用 query_data，仅根据工具返回的真实结果作答；"
+    "禁止编造示例分数、假设表格或让用户粘贴数据。"
+    "天气用 get_weather。工具失败或拒答时如实说明原因，不要用虚构数据代替。"
+)
 
 
 class ChatMessageIn(BaseModel):
@@ -401,6 +408,13 @@ async def _run_chat(db: Session, owner: ChatOwner, body: ChatRequest):
         system_prompt,
         exclude_conversation_id=conversation_id,
     )
+    # 管理端 + 支持 tools 的模型：注入强制走 query_data 的指引
+    if owner_type == "admin" and tools_enabled_for_model(model):
+        merged_system = (
+            f"{TOOLS_SYSTEM_HINT}\n\n{merged_system}"
+            if merged_system
+            else TOOLS_SYSTEM_HINT
+        )
     outbound = _inject_system(messages, merged_system)
 
     # NL2SQL 权限上下文：仅管理端开放；老师带班级范围；生成 SQL 复用用户 Key
@@ -448,8 +462,10 @@ async def _run_chat(db: Session, owner: ChatOwner, body: ChatRequest):
     except Exception:
         pass
 
+    # 注意：流式时 tool loop 在 StreamingResponse 生成器里才跑；
+    # 不能在返回 StreamingResponse 时立刻 clear，否则 query_data 会看到未开放。
     try:
-        return await _run_chat_after_db(
+        response = await _run_chat_after_db(
             outbound=outbound,
             api_key=api_key,
             model=model,
@@ -461,8 +477,12 @@ async def _run_chat(db: Session, owner: ChatOwner, body: ChatRequest):
             owner_id=owner_id,
             persist_conversation_id=persist_conversation_id,
         )
-    finally:
+        if not isinstance(response, StreamingResponse):
+            clear_nl2sql_context()
+        return response
+    except Exception:
         clear_nl2sql_context()
+        raise
 
 
 async def _run_chat_after_db(
@@ -689,6 +709,8 @@ async def _run_chat_after_db(
             except Exception:
                 pass
             yield f"data: {json.dumps({'type': 'error', 'error': str(e)}, ensure_ascii=False)}\n\n"
+        finally:
+            clear_nl2sql_context()
 
     return StreamingResponse(
         event_generator(),

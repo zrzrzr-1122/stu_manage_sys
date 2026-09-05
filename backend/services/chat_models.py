@@ -2,17 +2,20 @@ AVAILABLE_MODELS = [
     {
         "id": "deepseek-chat",
         "name": "DeepSeek Chat",
-        "description": "通用对话，适合日常问答与写作",
+        "description": "通用对话；支持成绩查询工具（query_data）与天气工具",
+        "supports_tools": True,
     },
     {
         "id": "deepseek-reasoner",
         "name": "DeepSeek Reasoner",
-        "description": "深度推理，适合复杂分析与数学",
+        "description": "深度推理；不支持工具，无法查库",
+        "supports_tools": False,
     },
     {
         "id": "deepseek-coder",
         "name": "DeepSeek Coder",
-        "description": "代码生成与编程辅助",
+        "description": "代码辅助；不支持工具，无法查库",
+        "supports_tools": False,
     },
 ]
 
